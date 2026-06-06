@@ -1,0 +1,75 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# Documentation
+*.md
+docs/
+
+# Testing
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv
+venv/
+env/
+
+# Virtual environments
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Airflow 
+airflow/logs/
+
+# Kubernetes
+k8s/
+
+# Node modules
+node_modules/
+
+# Temporary and cache files
+.mypy_cache/
+.dmypy.json
+tmp/
+temp/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.circleci/

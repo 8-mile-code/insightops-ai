@@ -1,0 +1,109 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+dist/
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads and temporary files
+uploads/
+tmp/
+temp/
+data/
+*.csv
+*.json
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Airflow
+airflow/logs/
+airflow/dags/__pycache__/
+airflow.db
+airflow-webserver.pid
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment specific
+.env.prod
+.env.staging
+.env.dev
+
+# IDE cache
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Kubernetes
+k8s/*.yaml.local
+k8s/secrets/
+
+# MCP Server
+mcp-server/logs/
+mcp-server/.env
+
+
+# Build artifacts
+dist/
+build/
+*.whl
+
+# Others docs
+plan.md
+plan_v2.md

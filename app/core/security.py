@@ -6,7 +6,6 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
-
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
@@ -22,13 +21,13 @@ def create_access_token(
         subject: str | int,
         expires_delta: timedelta | None = None,
 ) -> str:
-    expier = datetime.now(timezone.utc) + (
+    expire = datetime.now(timezone.utc) + (
         expires_delta
         or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     payload: dict[str, Any] = {
         "sub": str(subject),
-        "exp": expier,
+        "exp": expire,
     }
     return jwt.encode(
         payload,

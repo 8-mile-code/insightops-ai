@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.api.routers import auth, db_check, health
+from app.api.routers import auth, db_check, health, projects
 from app.core.config import settings
 
 app = FastAPI(
@@ -12,3 +12,4 @@ app = FastAPI(
 app.include_router(health.router)
 app.include_router(db_check.router)
 app.include_router(auth.router)
+app.include_router(projects.router)

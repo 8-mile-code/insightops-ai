@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,9 +27,9 @@ def get_auth_service() -> AuthService:
 )
 async def register(
     user_in: UserRegister,
-    db: AsyncSession = Depends(get_db),
-    auth_service: AuthService = Depends(get_auth_service),
-):
+    db: Annotated[AsyncSession, Depends(get_db)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> UserRead:
     try:
         return await auth_service.register_user(db, user_in)
     except UserAlreadyExistsError as error:
@@ -39,10 +41,10 @@ async def register(
 
 @router.post("/login", response_model=Token)
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(get_db),
-    auth_service: AuthService = Depends(get_auth_service),
-):
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> Token:
     user_in = UserLogin(
         email=form_data.username,
         password=form_data.password,
@@ -59,6 +61,6 @@ async def login(
 
 @router.get("/me", response_model=UserRead)
 async def get_me(
-    current_user: User = Depends(get_current_user)
-):
+    current_user: Annotated[User, Depends(get_current_user)]
+) -> UserRead:
     return current_user

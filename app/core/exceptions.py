@@ -10,5 +10,5 @@ class InvalidCredentialsError(AppError):
     """Raised when login credentials are invalid."""
 
 
-class DocumentNotFoundError(AppError):
-    """Raised when a document does not exist or not owned by the user."""
+class ProjectNotFoundError(Exception):
+    """Raised when a project does not exist or not owned by the user."""

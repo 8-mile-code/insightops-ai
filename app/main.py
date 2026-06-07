@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 
-from app.api.routers import db_check, health
+from app.api.routers import auth, db_check, health
 from app.core.config import settings
-
 
 app = FastAPI(
     title=settings.APP_TITLE,
@@ -12,3 +11,4 @@ app = FastAPI(
 
 app.include_router(health.router)
 app.include_router(db_check.router)
+app.include_router(auth.router)

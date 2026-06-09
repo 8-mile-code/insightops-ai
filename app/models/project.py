@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.dataset import Dataset
     from app.models.user import User
 
 
@@ -31,4 +32,9 @@ class Project(Base, TimestampMixin):
 
     owner: Mapped["User"] = relationship(
         back_populates="projects",
+    )
+
+    datasets: Mapped[list["Dataset"]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
     )

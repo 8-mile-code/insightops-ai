@@ -14,6 +14,7 @@ from app.repositories.dataset_repository import DatasetRepository
 from app.repositories.project_repository import ProjectRepository
 from app.schemas.dataset import DatasetRead
 from app.services.dataset_service import DatasetService
+from app.services.dataset_validation_service import DatasetValidationService
 from app.services.file_storage_service import FileStorageService
 from app.services.project_service import ProjectService
 
@@ -31,6 +32,10 @@ def get_dataset_service() -> DatasetService:
         project_service=project_service,
         file_storage_service=FileStorageService(),
     )
+
+
+def get_dataset_validation_service() -> DatasetValidationService:
+    return DatasetValidationService(repo=DatasetRepository())
 
 
 @router.post(
@@ -112,6 +117,38 @@ async def get_dataset(
             db,
             dataset_id=dataset_id,
             current_user=current_user,
+        )
+    except ProjectNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dataset not found",
+        ) from error
+
+
+@router.post(
+    "/datasets/{dataset_id}/validate",
+    response_model=DatasetRead,
+)
+async def validate_dataset(
+    dataset_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    dataset_service: Annotated[DatasetService, Depends(get_dataset_service)],
+    validation_service: Annotated[
+        DatasetValidationService,
+        Depends(get_dataset_validation_service),
+    ],
+) -> Dataset:
+    try:
+        dataset = await dataset_service.get_user_dataset(
+            db,
+            dataset_id=dataset_id,
+            current_user=current_user,
+        )
+
+        return await validation_service.validate_dataset(
+            db,
+            dataset=dataset,
         )
     except ProjectNotFoundError as error:
         raise HTTPException(

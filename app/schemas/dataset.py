@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import Field
 
@@ -19,5 +20,7 @@ class DatasetRead(BaseSchema):
     status: DatasetStatus
     file_path: str
     project_id: int
+    validation_errors: list[dict[str, Any]] | None = None
+    validated_at: datetime | None = None
     created_at: datetime
     updated_at: datetime

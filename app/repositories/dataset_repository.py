@@ -1,7 +1,9 @@
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.dataset import Dataset
+from app.models.dataset import Dataset, DatasetStatus
 
 
 class DatasetRepository:
@@ -40,3 +42,19 @@ class DatasetRepository:
             ).order_by(Dataset.created_at.desc())
         )
         return list(result.scalars().all())
+
+    async def update_validation_result(
+            self,
+            db: AsyncSession,
+            *,
+            dataset: Dataset,
+            status: DatasetStatus,
+            validation_errors: list[dict] | None
+    ) -> Dataset:
+        dataset.status = status
+        dataset.validation_errors = validation_errors
+        dataset.validated_at = datetime.now(timezone.utc)
+
+        await db.commit()
+        await db.refresh(dataset)
+        return dataset

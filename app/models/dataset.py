@@ -1,7 +1,9 @@
 import enum
-from typing import TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Enum, ForeignKey, String
+from sqlalchemy import DateTime, Enum, ForeignKey, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -26,6 +28,16 @@ class Dataset(Base, TimestampMixin):
         Enum(DatasetStatus),
         nullable=False,
         default=DatasetStatus.uploaded,
+    )
+
+    validation_errors: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
+    validated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
     file_path: Mapped[str] = mapped_column(String(255), nullable=False)
     project_id: Mapped[int] = mapped_column(

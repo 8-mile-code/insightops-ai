@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import Field
 
-from app.models.dataset import DatasetStatus
+from app.models.enums import DatasetStatus
 from app.schemas.base import BaseSchema
 
 

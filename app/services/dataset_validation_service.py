@@ -5,7 +5,8 @@ from typing import Any
 import aiofiles
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.dataset import Dataset, DatasetStatus
+from app.models.dataset import Dataset
+from app.models.enums import DatasetStatus
 from app.repositories.dataset_repository import DatasetRepository
 
 
@@ -41,7 +42,7 @@ class DatasetValidationService:
             return await self.repo.update_validation_result(
                 db,
                 dataset=dataset,
-                status=DatasetStatus.failed,
+                status=DatasetStatus.FAILED,
                 validation_errors=[
                     {
                         "type": "file_not_found",
@@ -56,7 +57,7 @@ class DatasetValidationService:
             return await self.repo.update_validation_result(
                 db,
                 dataset=dataset,
-                status=DatasetStatus.failed,
+                status=DatasetStatus.FAILED,
                 validation_errors=[
                     {
                         "type": "unsupported_file_type",
@@ -67,7 +68,7 @@ class DatasetValidationService:
 
         errors = await self._validate_csv(file_path)
 
-        status = DatasetStatus.uploaded if not errors else DatasetStatus.failed
+        status = DatasetStatus.UPLOADED if not errors else DatasetStatus.FAILED
 
         return await self.repo.update_validation_result(
             db,

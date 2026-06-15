@@ -1,4 +1,3 @@
-import enum
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -7,16 +6,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
+from app.models.enums import DatasetStatus
 
 if TYPE_CHECKING:
     from app.models.project import Project
-
-
-class DatasetStatus(str, enum.Enum):
-    uploaded = "uploaded"
-    processing = "processing"
-    processed = "processed"
-    failed = "failed"
 
 
 class Dataset(Base, TimestampMixin):
@@ -25,9 +18,14 @@ class Dataset(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[DatasetStatus] = mapped_column(
-        Enum(DatasetStatus),
+        Enum(
+            DatasetStatus,
+            values_callable=lambda enum_cls: [
+                status.value for status in enum_cls
+            ],
+        ),
         nullable=False,
-        default=DatasetStatus.uploaded,
+        default=DatasetStatus.UPLOADED,
     )
 
     validation_errors: Mapped[list[dict[str, Any]] | None] = mapped_column(

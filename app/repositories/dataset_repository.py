@@ -3,7 +3,8 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.dataset import Dataset, DatasetStatus
+from app.models.dataset import Dataset
+from app.models.enums import DatasetStatus
 
 
 class DatasetRepository:

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from airflow.sdk import dag, task # type: ignore[import-not-found]
+from airflow.sdk import dag, task  # type: ignore[import-not-found]
 
 
 @dag(

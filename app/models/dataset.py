@@ -9,8 +9,8 @@ from app.db.base import Base, TimestampMixin
 from app.models.enums import DatasetStatus
 
 if TYPE_CHECKING:
-    from app.models.project import Project
     from app.models.pipeline_run import PipelineRun
+    from app.models.project import Project
 
 
 class Dataset(Base, TimestampMixin):

@@ -5,6 +5,11 @@ x-airflow-common-env: &airflow-common-env
   AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-webserver:8080/execution/
   AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_API_AUTH_JWT_SECRET}
   AIRFLOW__API_AUTH__JWT_ISSUER: ${AIRFLOW_API_AUTH_JWT_ISSUER}
+  INSIGHTOPS_DB_HOST: postgres
+  INSIGHTOPS_DB_PORT: 5432
+  INSIGHTOPS_DB_USER: ${POSTGRES_USER}
+  INSIGHTOPS_DB_PASSWORD: ${POSTGRES_PASSWORD}
+  INSIGHTOPS_DB_NAME: ${POSTGRES_DB}
 
 x-airflow-common-volumes: &airflow-common-volumes
   - ./dags:/opt/airflow/dags

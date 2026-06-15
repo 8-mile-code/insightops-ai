@@ -10,6 +10,7 @@ from app.models.enums import DatasetStatus
 
 if TYPE_CHECKING:
     from app.models.project import Project
+    from app.models.pipeline_run import PipelineRun
 
 
 class Dataset(Base, TimestampMixin):
@@ -41,5 +42,9 @@ class Dataset(Base, TimestampMixin):
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False, index=True,
+    )
+    pipeline_runs: Mapped[list["PipelineRun"]] = relationship(
+        back_populates="dataset",
+        cascade="all, delete-orphan",
     )
     project: Mapped["Project"] = relationship(back_populates="datasets")

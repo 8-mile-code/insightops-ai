@@ -6,3 +6,9 @@ class DatasetStatus(str, Enum):
     PROCESSING = "processing"
     PROCESSED = "processed"
     FAILED = "failed"
+
+
+class PipelineRunStatus(str, Enum):
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"

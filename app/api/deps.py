@@ -11,8 +11,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 async def get_current_user(
-        token: str = Depends(oauth2_scheme),
-        db: AsyncSession = Depends(get_db),
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
 ) -> User:
     """Validate JWT access token and return the authenticated user.
 

@@ -19,22 +19,13 @@ class DatasetValidationService:
         "created_at",
     }
 
-    ALLOWED_STATUSES = {
-        "paid",
-        "failed",
-        "pending",
-        "cancelled",
-        "refunded"
-    }
+    ALLOWED_STATUSES = {"paid", "failed", "pending", "cancelled", "refunded"}
 
     def __init__(self, repo: DatasetRepository):
         self.repo = repo
 
     async def validate_dataset(
-            self,
-            db: AsyncSession,
-            *,
-            dataset: Dataset
+        self, db: AsyncSession, *, dataset: Dataset
     ) -> Dataset:
         file_path = Path(dataset.file_path)
 
@@ -48,9 +39,9 @@ class DatasetValidationService:
                         "type": "file_not_found",
                         "message": (
                             f"File not found at path: {dataset.file_path}"
-                        )
+                        ),
                     }
-                ]
+                ],
             )
 
         if file_path.suffix.lower() != ".csv":

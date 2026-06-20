@@ -39,8 +39,8 @@ format:
 	uv run ruff format app dags
 
 fix:
-	uv run ruff check --fix app dags
 	uv run ruff format app dags
+	uv run ruff check --fix app dags
 
 check: lint test
 

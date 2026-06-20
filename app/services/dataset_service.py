@@ -12,10 +12,10 @@ from app.services.project_service import ProjectService
 
 class DatasetService:
     def __init__(
-            self,
-            repo: DatasetRepository,
-            project_service: ProjectService,
-            file_storage_service: FileStorageService
+        self,
+        repo: DatasetRepository,
+        project_service: ProjectService,
+        file_storage_service: FileStorageService,
     ) -> None:
         self.repo = repo
         self.project_service = project_service
@@ -29,12 +29,10 @@ class DatasetService:
         current_user: User,
         name: str,
         file_path: str,
-        file_content: bytes
+        file_content: bytes,
     ) -> Dataset:
         project = await self.project_service.get_user_project(
-            db,
-            project_id=project_id,
-            current_user=current_user
+            db, project_id=project_id, current_user=current_user
         )
         await self.file_storage_service.save_file(
             Path(file_path),
@@ -42,18 +40,11 @@ class DatasetService:
         )
 
         return await self.repo.create(
-            db,
-            name=name,
-            file_path=file_path,
-            project_id=project.id
+            db, name=name, file_path=file_path, project_id=project.id
         )
 
     async def get_project_datasets(
-            self,
-            db: AsyncSession,
-            *,
-            project_id: int,
-            current_user: User
+        self, db: AsyncSession, *, project_id: int, current_user: User
     ) -> list[Dataset]:
         project = await self.project_service.get_user_project(
             db,
@@ -61,10 +52,7 @@ class DatasetService:
             current_user=current_user,
         )
 
-        return await self.repo.get_all_by_project(
-            db,
-            project_id=project.id
-        )
+        return await self.repo.get_all_by_project(db, project_id=project.id)
 
     async def get_user_dataset(
         self,

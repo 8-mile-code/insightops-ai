@@ -61,6 +61,6 @@ async def login(
 
 @router.get("/me", response_model=UserRead)
 async def get_me(
-    current_user: Annotated[User, Depends(get_current_user)]
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> UserRead:
     return current_user

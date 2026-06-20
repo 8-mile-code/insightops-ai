@@ -18,8 +18,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(
-        subject: str | int,
-        expires_delta: timedelta | None = None,
+    subject: str | int,
+    expires_delta: timedelta | None = None,
 ) -> str:
     expire = datetime.now(timezone.utc) + (
         expires_delta

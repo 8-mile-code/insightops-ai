@@ -41,7 +41,8 @@ class Dataset(Base, TimestampMixin):
     file_path: Mapped[str] = mapped_column(String(255), nullable=False)
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        nullable=False,
+        index=True,
     )
     pipeline_runs: Mapped[list["PipelineRun"]] = relationship(
         back_populates="dataset",

@@ -6,6 +6,7 @@ from typing import Any
 
 import psycopg2  # type: ignore[import-not-found]
 from psycopg2.extras import Json  # type: ignore[import-not-found]
+from airflow.exceptions import AirflowFailException  # type: ignore[import-not-found]
 from airflow.sdk import dag, task  # type: ignore[import-not-found]
 
 PIPELINE_STATUS_RUNNING = "running"
@@ -36,6 +37,57 @@ def get_connection():
         user=os.environ["INSIGHTOPS_DB_USER"],
         password=os.environ["INSIGHTOPS_DB_PASSWORD"],
         dbname=os.environ["INSIGHTOPS_DB_NAME"],
+    )
+
+
+def mark_pipeline_run_failed(context: dict[str, Any]) -> None:
+    task_instance = context["task_instance"]
+    pipeline_run_id = task_instance.xcom_pull(
+        task_ids="create_pipeline_run",
+    )
+
+    if pipeline_run_id is None:
+        return
+
+    exception = context.get("exception")
+    error_message = (
+        str(exception)
+        if exception is not None
+        else f"Task {task_instance.task_id} failed."
+    )
+    errors = [
+        {
+            "type": "pipeline_task_error",
+            "task": task_instance.task_id,
+            "message": error_message,
+        }
+    ]
+
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE pipeline_runs
+                SET
+                    status = %s,
+                    validation_errors = %s,
+                    error_message = %s,
+                    finished_at = %s,
+                    updated_at = now()
+                WHERE id = %s;
+                """,
+                (
+                    PIPELINE_STATUS_FAILED,
+                    Json(errors),
+                    error_message,
+                    datetime.now(UTC),
+                    pipeline_run_id,
+                ),
+            )
+
+    print(
+        f"Pipeline run {pipeline_run_id} failed "
+        f"in task={task_instance.task_id}"
     )
 
 
@@ -85,7 +137,7 @@ def process_dataset_dag():
 
         return pipeline_run_id
 
-    @task
+    @task(on_failure_callback=mark_pipeline_run_failed)
     def extract(file_path: str) -> list[dict[str, Any]]:
         airflow_file_path = file_path.replace(
             "uploads/",
@@ -111,7 +163,7 @@ def process_dataset_dag():
 
         return rows
 
-    @task
+    @task(on_failure_callback=mark_pipeline_run_failed)
     def validate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         errors: list[dict[str, Any]] = []
 
@@ -148,7 +200,7 @@ def process_dataset_dag():
 
         return result
 
-    @task
+    @task(on_failure_callback=mark_pipeline_run_failed)
     def finalize_pipeline_run(
         pipeline_run_id: int,
         validation_result: dict[str, Any],
@@ -190,18 +242,28 @@ def process_dataset_dag():
             f"with status={status}"
         )
 
+    @task
+    def fail_if_invalid(validation_result: dict[str, Any]) -> None:
+        if not validation_result["is_valid"]:
+            raise AirflowFailException("Dataset validation failed.")
+
     pipeline_run_id = create_pipeline_run(
         dataset_id="{{ dag_run.conf['dataset_id'] }}",
         airflow_run_id="{{ run_id }}",
     )
 
     rows = extract("{{ dag_run.conf['file_path'] }}")
+    pipeline_run_id >> rows
+
     validation_result = validate(rows)
 
-    finalize_pipeline_run(
+    finalize_task = finalize_pipeline_run(
         pipeline_run_id=pipeline_run_id,
         validation_result=validation_result,
     )
+    validation_check = fail_if_invalid(validation_result)
+
+    finalize_task >> validation_check
 
 
 def validate_row(

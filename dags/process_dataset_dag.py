@@ -6,8 +6,8 @@ from typing import Any
 
 import psycopg2  # type: ignore[import-not-found]
 from psycopg2.extras import Json  # type: ignore[import-not-found]
-from airflow.exceptions import AirflowFailException  # type: ignore[import-not-found]
 from airflow.sdk import dag, task  # type: ignore[import-not-found]
+from airflow.sdk.exceptions import AirflowFailException  # type: ignore[import-not-found]
 
 PIPELINE_STATUS_RUNNING = "running"
 PIPELINE_STATUS_SUCCESS = "success"

@@ -1,13 +1,14 @@
 import csv
 import os
+from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import psycopg2  # type: ignore[import-not-found]
 from psycopg2.extras import Json  # type: ignore[import-not-found]
-from airflow.sdk import dag, task  # type: ignore[import-not-found]
 from airflow.sdk.exceptions import AirflowFailException  # type: ignore[import-not-found]
+from airflow.sdk import dag, task  # type: ignore[import-not-found]
 
 PIPELINE_STATUS_RUNNING = "running"
 PIPELINE_STATUS_SUCCESS = "success"
@@ -96,7 +97,7 @@ def mark_pipeline_run_failed(context: dict[str, Any]) -> None:
     start_date=datetime(2026, 1, 1),
     schedule=None,
     catchup=False,
-    tags=["insightops", "datasets", "day-8"],
+    tags=["insightops", "datasets", "day-9"],
 )
 def process_dataset_dag():
     @task
@@ -201,19 +202,16 @@ def process_dataset_dag():
         return result
 
     @task(on_failure_callback=mark_pipeline_run_failed)
-    def finalize_pipeline_run(
+    def save_validation_failure_if_needed(
         pipeline_run_id: int,
         validation_result: dict[str, Any],
     ) -> None:
-        is_valid = validation_result["is_valid"]
-        errors = validation_result["errors"]
+        if validation_result["is_valid"]:
+            print("Validation passed. Pipeline run is not finalized yet.")
+            return
 
-        status = (
-            PIPELINE_STATUS_SUCCESS
-            if is_valid
-            else PIPELINE_STATUS_FAILED
-        )
-        error_message = None if is_valid else "Dataset validation failed."
+        errors = validation_result["errors"]
+        error_message = "Dataset validation failed."
 
         with get_connection() as conn:
             with conn.cursor() as cursor:
@@ -229,7 +227,7 @@ def process_dataset_dag():
                     WHERE id = %s;
                     """,
                     (
-                        status,
+                        PIPELINE_STATUS_FAILED,
                         Json(errors) if errors else None,
                         error_message,
                         datetime.now(UTC),
@@ -238,14 +236,127 @@ def process_dataset_dag():
                 )
 
         print(
-            f"Pipeline run {pipeline_run_id} finalized "
-            f"with status={status}"
+            f"Pipeline run {pipeline_run_id} marked as failed "
+            "because validation failed."
         )
 
     @task
     def fail_if_invalid(validation_result: dict[str, Any]) -> None:
         if not validation_result["is_valid"]:
             raise AirflowFailException("Dataset validation failed.")
+
+    @task(on_failure_callback=mark_pipeline_run_failed)
+    def transform(rows: list[dict[str, Any]]) -> dict[str, Any]:
+        transformed_rows = [
+            transform_row(row, row_index)
+            for row_index, row in enumerate(rows, start=2)
+        ]
+
+        result = {
+            "rows_count": len(transformed_rows),
+            "transformed_rows": transformed_rows,
+        }
+
+        print(f"Transformed {len(transformed_rows)} rows")
+
+        return result
+
+    @task(on_failure_callback=mark_pipeline_run_failed)
+    def build_aggregates(
+        transform_result: dict[str, Any],
+    ) -> dict[str, Any]:
+        rows = transform_result["transformed_rows"]
+
+        daily_revenue: dict[str, float] = defaultdict(float)
+        customer_revenue: dict[str, float] = defaultdict(float)
+        orders_by_status: Counter[str] = Counter()
+
+        failed_payments_count = 0
+        failed_payments_amount = 0.0
+
+        for row in rows:
+            status = row["status"]
+            amount = float(row["amount"])
+            order_date = datetime.fromisoformat(
+                row["created_at"]
+            ).date().isoformat()
+
+            orders_by_status[status] += 1
+
+            if status == "paid":
+                daily_revenue[order_date] += amount
+                customer_revenue[row["customer_id"]] += amount
+
+            if status == "failed":
+                failed_payments_count += 1
+                failed_payments_amount += amount
+
+        top_customers = sorted(
+            [
+                {
+                    "customer_id": customer_id,
+                    "revenue": round(revenue, 2),
+                }
+                for customer_id, revenue in customer_revenue.items()
+            ],
+            key=lambda item: item["revenue"],
+            reverse=True,
+        )[:5]
+
+        result = {
+            "rows_count": len(rows),
+            "daily_revenue": [
+                {
+                    "date": date,
+                    "revenue": round(revenue, 2),
+                }
+                for date, revenue in sorted(daily_revenue.items())
+            ],
+            "failed_payments": {
+                "count": failed_payments_count,
+                "amount": round(failed_payments_amount, 2),
+            },
+            "top_customers": top_customers,
+            "orders_by_status": dict(orders_by_status),
+        }
+
+        print(f"Aggregates result: {result}")
+
+        return result
+
+    @task(on_failure_callback=mark_pipeline_run_failed)
+    def finalize_pipeline_run_success(
+        pipeline_run_id: int,
+        aggregate_result: dict[str, Any],
+    ) -> None:
+        rows_count = aggregate_result["rows_count"]
+
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE pipeline_runs
+                    SET
+                        status = %s,
+                        validation_errors = NULL,
+                        error_message = NULL,
+                        finished_at = %s,
+                        updated_at = now()
+                    WHERE id = %s;
+                    """,
+                    (
+                        PIPELINE_STATUS_SUCCESS,
+                        datetime.now(UTC),
+                        pipeline_run_id,
+                    ),
+                )
+
+        print(
+            f"Pipeline run {pipeline_run_id} finalized with "
+            f"status={PIPELINE_STATUS_SUCCESS}. "
+            f"Transformed rows: {rows_count}. "
+            "Aggregates were built successfully."
+        )
 
     pipeline_run_id = create_pipeline_run(
         dataset_id="{{ dag_run.conf['dataset_id'] }}",
@@ -257,13 +368,23 @@ def process_dataset_dag():
 
     validation_result = validate(rows)
 
-    finalize_task = finalize_pipeline_run(
+    validation_failure_save = save_validation_failure_if_needed(
         pipeline_run_id=pipeline_run_id,
         validation_result=validation_result,
     )
     validation_check = fail_if_invalid(validation_result)
+    validation_failure_save >> validation_check
 
-    finalize_task >> validation_check
+    transform_result = transform(rows)
+
+    validation_check >> transform_result
+
+    aggregate_result = build_aggregates(transform_result)
+
+    finalize_pipeline_run_success(
+        pipeline_run_id=pipeline_run_id,
+        aggregate_result=aggregate_result,
+    )
 
 
 def validate_row(
@@ -314,6 +435,28 @@ def validate_row(
         )
 
     return errors
+
+
+def transform_row(
+    row: dict[str, Any],
+    row_index: int,
+) -> dict[str, Any]:
+    try:
+        created_at = datetime.fromisoformat(
+            row["created_at"].strip().replace("Z", "+00:00")
+        )
+    except ValueError as exc:
+        raise ValueError(
+            f"Invalid created_at value at row {row_index}: {row['created_at']}"
+        ) from exc
+
+    return {
+        "order_id": row["order_id"].strip(),
+        "customer_id": row["customer_id"].strip(),
+        "amount": float(row["amount"]),
+        "status": row["status"].strip().lower(),
+        "created_at": created_at.isoformat(),
+    }
 
 
 process_dataset_dag()

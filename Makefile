@@ -2,7 +2,8 @@ APP_DEBUG ?= true
 
 .PHONY: help install dev test lint format fix check \
 	postgres-up migrate revision migration-current \
-	docker-up docker-down docker-ps docker-logs airflow-errors
+	docker-up docker-down docker-ps docker-logs airflow-errors \
+	clickhouse-init
 
 help:
 	@echo "Available commands:"
@@ -22,6 +23,7 @@ help:
 	@echo "  make docker-ps                       Show Docker services"
 	@echo "  make docker-logs                     Follow Docker logs"
 	@echo "  make airflow-errors                  Show DAG import errors"
+	@echo "  make clickhouse-init                 Create ClickHouse tables"
 
 install:
 	uv sync --dev
@@ -71,3 +73,6 @@ docker-logs:
 
 airflow-errors:
 	docker compose exec airflow-scheduler airflow dags list-import-errors
+
+clickhouse-init:
+	env DEBUG=$(APP_DEBUG) uv run python -m scripts.create_clickhouse_tables

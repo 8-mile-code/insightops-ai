@@ -1,16 +1,21 @@
 import csv
 import os
 from collections import Counter, defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
+from decimal import Decimal
+
 
 import psycopg2  # type: ignore[import-not-found]
 from psycopg2.extras import Json  # type: ignore[import-not-found]
 from airflow.sdk.exceptions import AirflowFailException  # type: ignore[import-not-found]
 from airflow.sdk import dag, task  # type: ignore[import-not-found]
+import clickhouse_connect  # type: ignore[import-not-found]
+from clickhouse_connect.driver.client import Client  # type: ignore[import-not-found]
 
 PIPELINE_STATUS_RUNNING = "running"
+DATASET_STATUS_PROCESSED = "processed"
 PIPELINE_STATUS_SUCCESS = "success"
 PIPELINE_STATUS_FAILED = "failed"
 
@@ -38,6 +43,16 @@ def get_connection():
         user=os.environ["INSIGHTOPS_DB_USER"],
         password=os.environ["INSIGHTOPS_DB_PASSWORD"],
         dbname=os.environ["INSIGHTOPS_DB_NAME"],
+    )
+
+
+def get_clickhouse_client() -> Client:
+    return clickhouse_connect.get_client(
+        host=os.environ["CLICKHOUSE_HOST"],
+        port=int(os.environ["CLICKHOUSE_PORT"]),
+        username=os.environ["CLICKHOUSE_USER"],
+        password=os.environ["CLICKHOUSE_PASSWORD"],
+        database=os.environ["CLICKHOUSE_DB"],
     )
 
 
@@ -137,6 +152,31 @@ def process_dataset_dag():
         print(f"Created pipeline_run_id={pipeline_run_id}")
 
         return pipeline_run_id
+
+    @task(on_failure_callback=mark_pipeline_run_failed)
+    def get_dataset_context(dataset_id: int) -> dict[str, Any]:
+        dataset_id = int(dataset_id)
+
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT project_id
+                    FROM datasets
+                    WHERE id = %s;
+                    """,
+                    (dataset_id,),
+                )
+
+                row = cursor.fetchone()
+
+        if row is None:
+            raise ValueError(f"Dataset not found: {dataset_id}")
+
+        return {
+            "dataset_id": dataset_id,
+            "project_id": row[0],
+        }
 
     @task(on_failure_callback=mark_pipeline_run_failed)
     def extract(file_path: str) -> list[dict[str, Any]]:
@@ -277,9 +317,9 @@ def process_dataset_dag():
         for row in rows:
             status = row["status"]
             amount = float(row["amount"])
-            order_date = datetime.fromisoformat(
-                row["created_at"]
-            ).date().isoformat()
+            order_date = (
+                datetime.fromisoformat(row["created_at"]).date().isoformat()
+            )
 
             orders_by_status[status] += 1
 
@@ -307,10 +347,10 @@ def process_dataset_dag():
             "rows_count": len(rows),
             "daily_revenue": [
                 {
-                    "date": date,
+                    "date": revenue_date,
                     "revenue": round(revenue, 2),
                 }
-                for date, revenue in sorted(daily_revenue.items())
+                for revenue_date, revenue in sorted(daily_revenue.items())
             ],
             "failed_payments": {
                 "count": failed_payments_count,
@@ -325,11 +365,165 @@ def process_dataset_dag():
         return result
 
     @task(on_failure_callback=mark_pipeline_run_failed)
+    def load_to_clickhouse(
+        pipeline_run_id: int,
+        dataset_context: dict[str, Any],
+        transform_result: dict[str, Any],
+        aggregate_result: dict[str, Any],
+    ) -> dict[str, Any]:
+        client = get_clickhouse_client()
+
+        project_id = int(dataset_context["project_id"])
+        dataset_id = int(dataset_context["dataset_id"])
+        pipeline_run_id = int(pipeline_run_id)
+
+        transformed_rows = transform_result["transformed_rows"]
+
+        orders_events_rows = [
+            (
+                project_id,
+                dataset_id,
+                pipeline_run_id,
+                row["order_id"],
+                row["customer_id"],
+                Decimal(str(row["amount"])),
+                row["status"],
+                datetime.fromisoformat(row["created_at"]),
+            )
+            for row in transformed_rows
+        ]
+
+        if orders_events_rows:
+            client.insert(
+                "orders_events",
+                orders_events_rows,
+                column_names=[
+                    "project_id",
+                    "dataset_id",
+                    "pipeline_run_id",
+                    "order_id",
+                    "customer_id",
+                    "amount",
+                    "status",
+                    "created_at",
+                ],
+            )
+
+        daily_revenue_rows = [
+            (
+                project_id,
+                dataset_id,
+                pipeline_run_id,
+                date.fromisoformat(item["date"]),
+                Decimal(str(item["revenue"])),
+            )
+            for item in aggregate_result["daily_revenue"]
+        ]
+
+        if daily_revenue_rows:
+            client.insert(
+                "daily_revenue",
+                daily_revenue_rows,
+                column_names=[
+                    "project_id",
+                    "dataset_id",
+                    "pipeline_run_id",
+                    "date",
+                    "revenue",
+                ],
+            )
+
+        failed_payments = aggregate_result["failed_payments"]
+
+        client.insert(
+            "failed_payments",
+            [
+                (
+                    project_id,
+                    dataset_id,
+                    pipeline_run_id,
+                    int(failed_payments["count"]),
+                    Decimal(str(failed_payments["amount"])),
+                )
+            ],
+            column_names=[
+                "project_id",
+                "dataset_id",
+                "pipeline_run_id",
+                "failed_count",
+                "failed_amount",
+            ],
+        )
+
+        top_customers_rows = [
+            (
+                project_id,
+                dataset_id,
+                pipeline_run_id,
+                item["customer_id"],
+                Decimal(str(item["revenue"])),
+            )
+            for item in aggregate_result["top_customers"]
+        ]
+
+        if top_customers_rows:
+            client.insert(
+                "top_customers",
+                top_customers_rows,
+                column_names=[
+                    "project_id",
+                    "dataset_id",
+                    "pipeline_run_id",
+                    "customer_id",
+                    "revenue",
+                ],
+            )
+
+        orders_by_status_rows = [
+            (
+                project_id,
+                dataset_id,
+                pipeline_run_id,
+                status,
+                int(orders_count),
+            )
+            for status, orders_count in aggregate_result[
+                "orders_by_status"
+            ].items()
+        ]
+
+        if orders_by_status_rows:
+            client.insert(
+                "orders_by_status",
+                orders_by_status_rows,
+                column_names=[
+                    "project_id",
+                    "dataset_id",
+                    "pipeline_run_id",
+                    "status",
+                    "orders_count",
+                ],
+            )
+
+        result = {
+            "rows_count": len(orders_events_rows),
+            "orders_events_count": len(orders_events_rows),
+            "daily_revenue_count": len(daily_revenue_rows),
+            "failed_payments_count": 1,
+            "top_customers_count": len(top_customers_rows),
+            "orders_by_status_count": len(orders_by_status_rows),
+        }
+
+        print(f"Loaded data to ClickHouse: {result}")
+
+        return result
+
+    @task(on_failure_callback=mark_pipeline_run_failed)
     def finalize_pipeline_run_success(
         pipeline_run_id: int,
-        aggregate_result: dict[str, Any],
+        load_result: dict[str, Any],
     ) -> None:
-        rows_count = aggregate_result["rows_count"]
+        rows_count = load_result["rows_count"]
 
         with get_connection() as conn:
             with conn.cursor() as cursor:
@@ -351,17 +545,40 @@ def process_dataset_dag():
                     ),
                 )
 
+                cursor.execute(
+                    """
+                    UPDATE datasets
+                    SET
+                        status = %s,
+                        updated_at = now()
+                    WHERE id = (
+                        SELECT dataset_id
+                        FROM pipeline_runs
+                        WHERE id = %s
+                    );
+                    """,
+                    (
+                        DATASET_STATUS_PROCESSED,
+                        pipeline_run_id,
+                    ),
+                )
+
         print(
             f"Pipeline run {pipeline_run_id} finalized with "
             f"status={PIPELINE_STATUS_SUCCESS}. "
             f"Transformed rows: {rows_count}. "
-            "Aggregates were built successfully."
+            "ClickHouse load completed successfully."
         )
 
+    dataset_id = "{{ dag_run.conf['dataset_id'] }}"
+
     pipeline_run_id = create_pipeline_run(
-        dataset_id="{{ dag_run.conf['dataset_id'] }}",
+        dataset_id=dataset_id,
         airflow_run_id="{{ run_id }}",
     )
+
+    dataset_context = get_dataset_context(dataset_id)
+    pipeline_run_id >> dataset_context
 
     rows = extract("{{ dag_run.conf['file_path'] }}")
     pipeline_run_id >> rows
@@ -373,17 +590,24 @@ def process_dataset_dag():
         validation_result=validation_result,
     )
     validation_check = fail_if_invalid(validation_result)
+
     validation_failure_save >> validation_check
 
     transform_result = transform(rows)
-
     validation_check >> transform_result
 
     aggregate_result = build_aggregates(transform_result)
 
+    load_result = load_to_clickhouse(
+        pipeline_run_id=pipeline_run_id,
+        dataset_context=dataset_context,
+        transform_result=transform_result,
+        aggregate_result=aggregate_result,
+    )
+
     finalize_pipeline_run_success(
         pipeline_run_id=pipeline_run_id,
-        aggregate_result=aggregate_result,
+        load_result=load_result,
     )
 
 

@@ -10,6 +10,11 @@ x-airflow-common-env: &airflow-common-env
   INSIGHTOPS_DB_USER: ${POSTGRES_USER}
   INSIGHTOPS_DB_PASSWORD: ${POSTGRES_PASSWORD}
   INSIGHTOPS_DB_NAME: ${POSTGRES_DB}
+  CLICKHOUSE_HOST: clickhouse
+  CLICKHOUSE_PORT: 8123
+  CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+  CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
 
 x-airflow-common-volumes: &airflow-common-volumes
   - ./dags:/opt/airflow/dags

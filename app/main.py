@@ -7,6 +7,7 @@ from app.api.routers import (
     db_check,
     health,
     projects,
+    reports,
 )
 from app.core.config import settings
 
@@ -22,3 +23,4 @@ app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(datasets.router)
 app.include_router(analytics.router)
+app.include_router(reports.router)

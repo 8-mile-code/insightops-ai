@@ -10,5 +10,9 @@ class InvalidCredentialsError(AppError):
     """Raised when login credentials are invalid."""
 
 
-class ProjectNotFoundError(Exception):
+class ProjectNotFoundError(AppError):
     """Raised when a project does not exist or not owned by the user."""
+
+
+class ReportNotFoundError(AppError):
+    """Raised when a report does not exist or is not owned by the user."""

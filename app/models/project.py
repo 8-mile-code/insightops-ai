@@ -7,6 +7,7 @@ from app.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.dataset import Dataset
+    from app.models.report import Report
     from app.models.user import User
 
 
@@ -35,6 +36,11 @@ class Project(Base, TimestampMixin):
     )
 
     datasets: Mapped[list["Dataset"]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+
+    reports: Mapped[list["Report"]] = relationship(
         back_populates="project",
         cascade="all, delete-orphan",
     )

@@ -18,7 +18,7 @@ from app.services.dataset_validation_service import DatasetValidationService
 from app.services.file_storage_service import FileStorageService
 from app.services.project_service import ProjectService
 
-router = APIRouter(tags=["📁 Datasets"])
+router = APIRouter(tags=["💾 Datasets"])
 
 UPLOAD_DIR = Path("uploads/datasets")
 ALLOWED_EXTENSIONS = {".csv", ".json"}

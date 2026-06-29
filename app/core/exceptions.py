@@ -16,3 +16,7 @@ class ProjectNotFoundError(AppError):
 
 class ReportNotFoundError(AppError):
     """Raised when a report does not exist or is not owned by the user."""
+
+
+class LLMServiceError(AppError):
+    """Raised when LLM report generation fails."""

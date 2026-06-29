@@ -14,6 +14,7 @@ from app.repositories.report_repository import ReportRepository
 from app.schemas.report import ReportGenerateRequest, ReportRead
 from app.services.analytics_service import AnalyticsService
 from app.services.report_service import ReportService
+from app.services.llm_service import LLMService
 
 
 router = APIRouter(tags=["📋 Reports"])
@@ -31,6 +32,7 @@ def get_report_service() -> ReportService:
         report_repo=ReportRepository(),
         project_repo=project_repo,
         analytics_service=analytics_service,
+        llm_service=LLMService(),
     )
 
 

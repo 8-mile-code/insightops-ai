@@ -3,13 +3,18 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ProjectNotFoundError, ReportNotFoundError
+from app.core.exceptions import (
+    LLMServiceError,
+    ProjectNotFoundError,
+    ReportNotFoundError,
+)
 from app.models.report import Report
 from app.models.user import User
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.report_repository import ReportRepository
 from app.schemas.report import ReportGenerateRequest
 from app.services.analytics_service import AnalyticsService
+from app.services.llm_service import LLMService
 
 
 class ReportService:
@@ -19,10 +24,12 @@ class ReportService:
         report_repo: ReportRepository,
         project_repo: ProjectRepository,
         analytics_service: AnalyticsService,
+        llm_service: LLMService,
     ) -> None:
         self.report_repo = report_repo
         self.project_repo = project_repo
         self.analytics_service = analytics_service
+        self.llm_service = llm_service
 
     async def generate_report(
         self,
@@ -50,7 +57,8 @@ class ReportService:
             project_id=project_id,
             pipeline_run_id=report_in.pipeline_run_id,
         )
-        content = self._build_summary(metrics_snapshot)
+
+        content = await self._build_report_content(metrics_snapshot)
 
         return await self.report_repo.create(
             db,
@@ -194,6 +202,21 @@ class ReportService:
             )
 
         return f"Analytics report for project {project_id}"
+
+    async def _build_report_content(
+        self,
+        metrics_snapshot: dict[str, Any],
+    ) -> str:
+        deterministic_summary = self._build_summary(metrics_snapshot)
+
+        try:
+            llm_summary = await self.llm_service.generate_report_summary(
+                metrics_snapshot,
+            )
+        except LLMServiceError:
+            return deterministic_summary
+
+        return llm_summary
 
     def _build_summary(
         self,

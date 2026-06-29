@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     CLICKHOUSE_USER: str
     CLICKHOUSE_PASSWORD: str
 
+    LLM_PROVIDER: str = "openai"
+    LLM_MODEL: str = "gpt-5.4-mini"
+    LLM_ENABLED: bool = False
+    OPENAI_API_KEY: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

@@ -13,6 +13,7 @@ class LLMService:
         self.model = settings.LLM_MODEL
         self.enabled = settings.LLM_ENABLED
         self.api_key = settings.OPENAI_API_KEY
+        self.timeout = settings.LLM_TIMEOUT_SECONDS
 
     async def generate_report_summary(
         self,
@@ -30,7 +31,10 @@ class LLMService:
         prompt = build_report_prompt(metrics)
 
         try:
-            client = AsyncOpenAI(api_key=self.api_key)
+            client = AsyncOpenAI(
+                api_key=self.api_key,
+                timeout=self.timeout,
+            )
 
             response = await client.responses.create(
                 model=self.model,

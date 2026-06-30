@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "gpt-5.4-mini"
     LLM_ENABLED: bool = False
     OPENAI_API_KEY: str | None = None
+    LLM_TIMEOUT_SECONDS: float = 15.0
 
     model_config = SettingsConfigDict(
         env_file=".env",

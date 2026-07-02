@@ -20,4 +20,6 @@ class AnalyticsAgentState(TypedDict):
     action: AnalyticsAction
 
     tool_result: Any
+    used_tools: list[str]
+    sources: list[dict[str, Any]]
     answer: str

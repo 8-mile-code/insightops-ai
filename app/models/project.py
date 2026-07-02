@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from app.models.dataset import Dataset
     from app.models.report import Report
     from app.models.user import User
+    from app.models.agent_message import AgentMessage
 
 
 class Project(Base, TimestampMixin):
@@ -41,6 +42,11 @@ class Project(Base, TimestampMixin):
     )
 
     reports: Mapped[list["Report"]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+
+    agent_messages: Mapped[list["AgentMessage"]] = relationship(
         back_populates="project",
         cascade="all, delete-orphan",
     )

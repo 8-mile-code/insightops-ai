@@ -17,10 +17,16 @@ def parse_question(
 ) -> dict[str, Any]:
     question = state["question"]
 
+    extracted_project_id = _extract_int(question, "project")
+    extracted_dataset_id = _extract_int(question, "dataset")
+    extracted_pipeline_run_id = _extract_pipeline_run_id(question)
+
     return {
-        "project_id": _extract_int(question, "project"),
-        "dataset_id": _extract_int(question, "dataset"),
-        "pipeline_run_id": _extract_pipeline_run_id(question),
+        "project_id": extracted_project_id or state.get("project_id"),
+        "dataset_id": extracted_dataset_id or state.get("dataset_id"),
+        "pipeline_run_id": (
+            extracted_pipeline_run_id or state.get("pipeline_run_id")
+        ),
     }
 
 
@@ -54,9 +60,7 @@ def execute_analytics_query(
 
     if action == "unknown":
         return {
-            "tool_result": {
-                "error": "I could not choose an analytics action."
-            }
+            "tool_result": {"error": "I could not choose an analytics action."}
         }
 
     project_id = state["project_id"]
@@ -77,7 +81,19 @@ def execute_analytics_query(
             dataset_id=dataset_id,
             pipeline_run_id=pipeline_run_id,
         )
-        return {"tool_result": result}
+        return {
+            "tool_result": result,
+            "used_tools": ["get_daily_revenue_tool"],
+            "sources": [
+                {
+                    "type": "clickhouse_table",
+                    "name": "daily_revenue",
+                    "project_id": project_id,
+                    "dataset_id": dataset_id,
+                    "pipeline_run_id": pipeline_run_id,
+                }
+            ],
+        }
 
     if action == "orders_by_status":
         result = get_orders_by_status_tool(
@@ -85,7 +101,19 @@ def execute_analytics_query(
             dataset_id=dataset_id,
             pipeline_run_id=pipeline_run_id,
         )
-        return {"tool_result": result}
+        return {
+            "tool_result": result,
+            "used_tools": ["get_orders_by_status_tool"],
+            "sources": [
+                {
+                    "type": "clickhouse_table",
+                    "name": "orders_by_status",
+                    "project_id": project_id,
+                    "dataset_id": dataset_id,
+                    "pipeline_run_id": pipeline_run_id,
+                }
+            ],
+        }
 
     if action == "failed_payments":
         result = get_failed_payments_tool(
@@ -93,7 +121,19 @@ def execute_analytics_query(
             dataset_id=dataset_id,
             pipeline_run_id=pipeline_run_id,
         )
-        return {"tool_result": result}
+        return {
+            "tool_result": result,
+            "used_tools": ["get_failed_payments_tool"],
+            "sources": [
+                {
+                    "type": "clickhouse_table",
+                    "name": "failed_payments",
+                    "project_id": project_id,
+                    "dataset_id": dataset_id,
+                    "pipeline_run_id": pipeline_run_id,
+                }
+            ],
+        }
 
     if action == "top_customers":
         result = get_top_customers_tool(
@@ -102,12 +142,26 @@ def execute_analytics_query(
             pipeline_run_id=pipeline_run_id,
             limit=5,
         )
-        return {"tool_result": result}
+        return {
+            "tool_result": result,
+            "used_tools": ["get_top_customers_tool"],
+            "sources": [
+                {
+                    "type": "clickhouse_table",
+                    "name": "top_customers",
+                    "project_id": project_id,
+                    "dataset_id": dataset_id,
+                    "pipeline_run_id": pipeline_run_id,
+                }
+            ],
+        }
 
     return {
         "tool_result": {
             "error": "I could not execute the selected analytics action."
-        }
+        },
+        "used_tools": [],
+        "sources": [],
     }
 
 
@@ -218,8 +272,7 @@ def _format_top_customers(rows: list[dict[str, Any]]) -> str:
 
     for index, row in enumerate(rows, start=1):
         lines.append(
-            f"{index}. Customer {row['customer_id']}: "
-            f"{row['revenue']:.2f}"
+            f"{index}. Customer {row['customer_id']}: {row['revenue']:.2f}"
         )
 
     return "\n".join(lines)

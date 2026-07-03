@@ -83,6 +83,7 @@ class AgentService:
             "project_id": project_id,
             "dataset_id": ask_in.dataset_id,
             "pipeline_run_id": ask_in.pipeline_run_id,
+            "compare_pipeline_run_id": ask_in.compare_pipeline_run_id,
             "action": "unknown",
             "tool_result": None,
             "used_tools": [],

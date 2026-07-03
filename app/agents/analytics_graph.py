@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import Any
 
@@ -5,11 +6,16 @@ from langgraph.graph import END, START, StateGraph
 
 from app.agents.analytics_state import AnalyticsAction, AnalyticsAgentState
 from app.agents.analytics_tools import (
+    compare_periods_tool,
+    generate_report_tool,
     get_daily_revenue_tool,
     get_failed_payments_tool,
     get_orders_by_status_tool,
     get_top_customers_tool,
 )
+from app.agents.tool_result import ToolResult
+
+logger = logging.getLogger(__name__)
 
 
 def parse_question(
@@ -34,6 +40,20 @@ def choose_action(
     state: AnalyticsAgentState,
 ) -> dict[str, AnalyticsAction]:
     question = state["question"].lower()
+
+    if "compare" in question or "сравн" in question:
+        return {"action": "compare_periods"}
+
+    if "report" in question or "отчет" in question or "summary" in question:
+        return {"action": "generate_report"}
+
+    if (
+        "pipeline status" in question
+        or "run status" in question
+        or "статус пайплайна" in question
+        or "статус запуска" in question
+    ):
+        return {"action": "pipeline_status"}
 
     if "revenue" in question or "выруч" in question:
         return {"action": "daily_revenue"}
@@ -81,19 +101,7 @@ def execute_analytics_query(
             dataset_id=dataset_id,
             pipeline_run_id=pipeline_run_id,
         )
-        return {
-            "tool_result": result,
-            "used_tools": ["get_daily_revenue_tool"],
-            "sources": [
-                {
-                    "type": "clickhouse_table",
-                    "name": "daily_revenue",
-                    "project_id": project_id,
-                    "dataset_id": dataset_id,
-                    "pipeline_run_id": pipeline_run_id,
-                }
-            ],
-        }
+        return _build_tool_state_update(result)
 
     if action == "orders_by_status":
         result = get_orders_by_status_tool(
@@ -101,19 +109,7 @@ def execute_analytics_query(
             dataset_id=dataset_id,
             pipeline_run_id=pipeline_run_id,
         )
-        return {
-            "tool_result": result,
-            "used_tools": ["get_orders_by_status_tool"],
-            "sources": [
-                {
-                    "type": "clickhouse_table",
-                    "name": "orders_by_status",
-                    "project_id": project_id,
-                    "dataset_id": dataset_id,
-                    "pipeline_run_id": pipeline_run_id,
-                }
-            ],
-        }
+        return _build_tool_state_update(result)
 
     if action == "failed_payments":
         result = get_failed_payments_tool(
@@ -121,19 +117,7 @@ def execute_analytics_query(
             dataset_id=dataset_id,
             pipeline_run_id=pipeline_run_id,
         )
-        return {
-            "tool_result": result,
-            "used_tools": ["get_failed_payments_tool"],
-            "sources": [
-                {
-                    "type": "clickhouse_table",
-                    "name": "failed_payments",
-                    "project_id": project_id,
-                    "dataset_id": dataset_id,
-                    "pipeline_run_id": pipeline_run_id,
-                }
-            ],
-        }
+        return _build_tool_state_update(result)
 
     if action == "top_customers":
         result = get_top_customers_tool(
@@ -142,18 +126,49 @@ def execute_analytics_query(
             pipeline_run_id=pipeline_run_id,
             limit=5,
         )
+        return _build_tool_state_update(result)
+
+    if action == "compare_periods":
+        compare_pipeline_run_id = state["compare_pipeline_run_id"]
+
+        if pipeline_run_id is None or compare_pipeline_run_id is None:
+            return {
+                "tool_result": {
+                    "error": (
+                        "To compare periods, provide pipeline_run_id "
+                        "and compare_pipeline_run_id."
+                    )
+                },
+                "used_tools": [],
+                "sources": [],
+            }
+
+        result = compare_periods_tool(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            pipeline_run_id=pipeline_run_id,
+            compare_pipeline_run_id=compare_pipeline_run_id,
+        )
+        return _build_tool_state_update(result)
+
+    if action == "generate_report":
+        result = generate_report_tool(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            pipeline_run_id=pipeline_run_id,
+        )
+        return _build_tool_state_update(result)
+
+    if action == "pipeline_status":
         return {
-            "tool_result": result,
-            "used_tools": ["get_top_customers_tool"],
-            "sources": [
-                {
-                    "type": "clickhouse_table",
-                    "name": "top_customers",
-                    "project_id": project_id,
-                    "dataset_id": dataset_id,
-                    "pipeline_run_id": pipeline_run_id,
-                }
-            ],
+            "tool_result": {
+                "error": (
+                    "Pipeline status tool is planned for async PostgreSQL "
+                    "integration."
+                )
+            },
+            "used_tools": [],
+            "sources": [],
         }
 
     return {
@@ -174,17 +189,25 @@ def generate_answer(
     if isinstance(result, dict) and "error" in result:
         return {"answer": result["error"]}
 
+    data = result["data"]
+
     if action == "daily_revenue":
-        return {"answer": _format_daily_revenue(result)}
+        return {"answer": _format_daily_revenue(data)}
 
     if action == "orders_by_status":
-        return {"answer": _format_orders_by_status(result)}
+        return {"answer": _format_orders_by_status(data)}
 
     if action == "failed_payments":
-        return {"answer": _format_failed_payments(result)}
+        return {"answer": _format_failed_payments(data)}
 
     if action == "top_customers":
-        return {"answer": _format_top_customers(result)}
+        return {"answer": _format_top_customers(data)}
+
+    if action == "compare_periods":
+        return {"answer": _format_compare_periods(data)}
+
+    if action == "generate_report":
+        return {"answer": data["summary"]}
 
     return {"answer": "I do not know how to answer this question yet."}
 
@@ -276,3 +299,36 @@ def _format_top_customers(rows: list[dict[str, Any]]) -> str:
         )
 
     return "\n".join(lines)
+
+
+def _format_compare_periods(data: dict[str, Any]) -> str:
+    diff_percent = data["difference_percent"]
+
+    percent_part = (
+        f" ({diff_percent:.2f}%)"
+        if diff_percent is not None
+        else " (percentage change isunavailable because previous revenue is 0)"
+    )
+
+    return (
+        "Revenue comparison:\n"
+        f"- Current pipeline run {data['current_pipeline_run_id']}: "
+        f"{data['current_total_revenue']:.2f}\n"
+        f"- Compared pipeline run {data['compare_pipeline_run_id']}: "
+        f"{data['previous_total_revenue']:.2f}\n"
+        f"- Difference: {data['difference']:.2f}{percent_part}"
+    )
+
+
+def _build_tool_state_update(
+    tool_result: ToolResult,
+) -> dict[str, Any]:
+    tool_name = tool_result["tool_name"]
+
+    logger.info("Agent used tool: %s", tool_name)
+
+    return {
+        "tool_result": tool_result,
+        "used_tools": [tool_name],
+        "sources": tool_result["sources"],
+    }

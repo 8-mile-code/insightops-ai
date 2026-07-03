@@ -10,6 +10,7 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=1)
     dataset_id: int | None = None
     pipeline_run_id: int | None = None
+    compare_pipeline_run_id: int | None = None
 
 
 class AskResponse(BaseSchema):

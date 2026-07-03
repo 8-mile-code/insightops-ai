@@ -6,6 +6,9 @@ AnalyticsAction = Literal[
     "orders_by_status",
     "failed_payments",
     "top_customers",
+    "compare_periods",
+    "pipeline_status",
+    "generate_report",
     "unknown",
 ]
 
@@ -16,6 +19,7 @@ class AnalyticsAgentState(TypedDict):
     project_id: int | None
     dataset_id: int | None
     pipeline_run_id: int | None
+    compare_pipeline_run_id: int | None
 
     action: AnalyticsAction
 

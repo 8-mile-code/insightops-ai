@@ -14,6 +14,10 @@ from app.agents.analytics_tools import (
     get_top_customers_tool,
 )
 from app.agents.tool_result import ToolResult
+from app.mcp_clients.analytics_client import (
+    AnalyticsMCPClient,
+    MCPToolCallError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +77,7 @@ def choose_action(
     return {"action": "unknown"}
 
 
-def execute_analytics_query(
+async def execute_analytics_query(
     state: AnalyticsAgentState,
 ) -> dict[str, Any]:
     action = state["action"]
@@ -95,13 +99,19 @@ def execute_analytics_query(
     dataset_id = state["dataset_id"]
     pipeline_run_id = state["pipeline_run_id"]
 
+    common_arguments = {
+        "project_id": project_id,
+        "dataset_id": dataset_id,
+        "pipeline_run_id": pipeline_run_id,
+    }
+
     if action == "daily_revenue":
-        result = get_daily_revenue_tool(
-            project_id=project_id,
-            dataset_id=dataset_id,
-            pipeline_run_id=pipeline_run_id,
+        return await _call_mcp_tool_with_fallback(
+            mcp_tool_name="get_daily_revenue",
+            mcp_arguments=common_arguments,
+            fallback_tool=get_daily_revenue_tool,
+            fallback_arguments=common_arguments,
         )
-        return _build_tool_state_update(result)
 
     if action == "orders_by_status":
         result = get_orders_by_status_tool(
@@ -112,21 +122,24 @@ def execute_analytics_query(
         return _build_tool_state_update(result)
 
     if action == "failed_payments":
-        result = get_failed_payments_tool(
-            project_id=project_id,
-            dataset_id=dataset_id,
-            pipeline_run_id=pipeline_run_id,
+        return await _call_mcp_tool_with_fallback(
+            mcp_tool_name="get_failed_payments",
+            mcp_arguments=common_arguments,
+            fallback_tool=get_failed_payments_tool,
+            fallback_arguments=common_arguments,
         )
-        return _build_tool_state_update(result)
 
     if action == "top_customers":
-        result = get_top_customers_tool(
-            project_id=project_id,
-            dataset_id=dataset_id,
-            pipeline_run_id=pipeline_run_id,
-            limit=5,
+        arguments = {
+            **common_arguments,
+            "limit": 5,
+        }
+        return await _call_mcp_tool_with_fallback(
+            mcp_tool_name="get_top_customers",
+            mcp_arguments=arguments,
+            fallback_tool=get_top_customers_tool,
+            fallback_arguments=arguments,
         )
-        return _build_tool_state_update(result)
 
     if action == "compare_periods":
         compare_pipeline_run_id = state["compare_pipeline_run_id"]
@@ -160,24 +173,31 @@ def execute_analytics_query(
         return _build_tool_state_update(result)
 
     if action == "pipeline_status":
-        return {
-            "tool_result": {
-                "error": (
-                    "Pipeline status tool is planned for async PostgreSQL "
-                    "integration."
-                )
-            },
-            "used_tools": [],
-            "sources": [],
-        }
+        if pipeline_run_id is None:
+            return {
+                "tool_result": {
+                    "error": "pipeline_run_id is required. Example: run 13"
+                },
+                "used_tools": [],
+                "sources": [],
+            }
 
-    return {
-        "tool_result": {
-            "error": "I could not execute the selected analytics action."
-        },
-        "used_tools": [],
-        "sources": [],
-    }
+        mcp_client = AnalyticsMCPClient()
+        mcp_result = await mcp_client.call_tool(
+            "get_pipeline_status",
+            {
+                "pipeline_run_id": pipeline_run_id,
+            },
+        )
+
+        return {
+            "tool_result": _normalize_mcp_result(
+                tool_name="get_pipeline_status",
+                result=mcp_result,
+            ),
+            "used_tools": ["get_pipeline_status"],
+            "sources": mcp_result.get("sources", []),
+        }
 
 
 def generate_answer(
@@ -205,6 +225,9 @@ def generate_answer(
 
     if action == "compare_periods":
         return {"answer": _format_compare_periods(data)}
+
+    if action == "pipeline_status":
+        return {"answer": _format_pipeline_status(data)}
 
     if action == "generate_report":
         return {"answer": data["summary"]}
@@ -307,7 +330,8 @@ def _format_compare_periods(data: dict[str, Any]) -> str:
     percent_part = (
         f" ({diff_percent:.2f}%)"
         if diff_percent is not None
-        else " (percentage change isunavailable because previous revenue is 0)"
+        else " (percentage change is unavailable "
+        "because previous revenue is 0)"
     )
 
     return (
@@ -317,6 +341,15 @@ def _format_compare_periods(data: dict[str, Any]) -> str:
         f"- Compared pipeline run {data['compare_pipeline_run_id']}: "
         f"{data['previous_total_revenue']:.2f}\n"
         f"- Difference: {data['difference']:.2f}{percent_part}"
+    )
+
+
+def _format_pipeline_status(data: dict[str, Any]) -> str:
+    return (
+        "Pipeline status:\n"
+        f"- Pipeline run ID: {data['pipeline_run_id']}\n"
+        f"- Status: {data['status']}\n"
+        f"- Message: {data.get('message', 'No details')}"
     )
 
 
@@ -331,4 +364,65 @@ def _build_tool_state_update(
         "tool_result": tool_result,
         "used_tools": [tool_name],
         "sources": tool_result["sources"],
+    }
+
+
+async def _call_mcp_tool_with_fallback(
+    *,
+    mcp_tool_name: str,
+    mcp_arguments: dict[str, Any],
+    fallback_tool,
+    fallback_arguments: dict[str, Any],
+) -> dict[str, Any]:
+    mcp_client = AnalyticsMCPClient()
+
+    try:
+        mcp_result = await mcp_client.call_tool(
+            mcp_tool_name,
+            mcp_arguments,
+        )
+
+        logger.info("Agent used MCP tool: %s", mcp_tool_name)
+
+        return {
+            "tool_result": _normalize_mcp_result(
+                tool_name=mcp_tool_name,
+                result=mcp_result,
+            ),
+            "used_tools": [mcp_tool_name],
+            "sources": mcp_result.get("sources", []),
+        }
+
+    except MCPToolCallError as error:
+        logger.warning(
+            "MCP tool failed, falling back to direct tool: %s",
+            mcp_tool_name,
+            exc_info=error,
+        )
+
+        fallback_result = fallback_tool(**fallback_arguments)
+        fallback_result["metadata"]["fallback_reason"] = str(error)
+
+        return {
+            "tool_result": fallback_result,
+            "used_tools": [
+                f"fallback:{fallback_result['tool_name']}",
+            ],
+            "sources": fallback_result["sources"],
+        }
+
+
+def _normalize_mcp_result(
+    *,
+    tool_name: str,
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "tool_name": result.get("tool", tool_name),
+        "data": result.get("data"),
+        "sources": result.get("sources", []),
+        "metadata": {
+            **result.get("metadata", {}),
+            "execution_layer": "mcp",
+        },
     }

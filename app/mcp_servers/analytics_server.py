@@ -49,12 +49,12 @@ def get_daily_revenue(
         "tool": "get_daily_revenue",
         "data": data,
         "sources": [
-                _build_clickhouse_source(
-                    table="daily_revenue",
-                    project_id=project_id,
-                    dataset_id=dataset_id,
-                    pipeline_run_id=pipeline_run_id,
-                )
+            _build_clickhouse_source(
+                table="daily_revenue",
+                project_id=project_id,
+                dataset_id=dataset_id,
+                pipeline_run_id=pipeline_run_id,
+            )
         ],
         "metadata": {
             "rows_count": len(data),
@@ -81,12 +81,12 @@ def get_failed_payments(
         "tool": "get_failed_payments",
         "data": data,
         "sources": [
-               _build_clickhouse_source(
-                   table="failed_payments",
-                   project_id=project_id,
-                   dataset_id=dataset_id,
-                   pipeline_run_id=pipeline_run_id,
-               )
+            _build_clickhouse_source(
+                table="failed_payments",
+                project_id=project_id,
+                dataset_id=dataset_id,
+                pipeline_run_id=pipeline_run_id,
+            )
         ],
         "metadata": {
             "rows_count": 1,
@@ -116,12 +116,12 @@ def get_top_customers(
         "tool": "get_top_customers",
         "data": data,
         "sources": [
-                _build_clickhouse_source(
-                    table="top_customers",
-                    project_id=project_id,
-                    dataset_id=dataset_id,
-                    pipeline_run_id=pipeline_run_id,
-                )
+            _build_clickhouse_source(
+                table="top_customers",
+                project_id=project_id,
+                dataset_id=dataset_id,
+                pipeline_run_id=pipeline_run_id,
+            )
         ],
         "metadata": {
             "rows_count": len(data),

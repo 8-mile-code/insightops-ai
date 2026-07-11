@@ -1,7 +1,6 @@
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.concurrency import run_in_threadpool
 
 from app.agents.analytics_graph import build_analytics_agent
 from app.core.exceptions import ProjectNotFoundError
@@ -91,7 +90,7 @@ class AgentService:
             "answer": "",
         }
 
-        return await run_in_threadpool(agent.invoke, initial_state)
+        return await agent.ainvoke(initial_state)
 
     async def _ensure_project_access(
         self,

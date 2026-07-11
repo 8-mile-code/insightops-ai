@@ -18,11 +18,13 @@ class AgentMessageRepository:
         sources: list[dict[str, Any]],
         dataset_id: int | None = None,
         pipeline_run_id: int | None = None,
+        report_id: int | None = None,
     ) -> AgentMessage:
         message = AgentMessage(
             project_id=project_id,
             dataset_id=dataset_id,
             pipeline_run_id=pipeline_run_id,
+            report_id=report_id,
             question=question,
             answer=answer,
             used_tools=used_tools,

@@ -6,9 +6,12 @@ from app.agents.analytics_graph import build_analytics_agent
 from app.core.exceptions import ProjectNotFoundError
 from app.models.agent_message import AgentMessage
 from app.models.user import User
+from app.models.report import Report
 from app.repositories.agent_message_repository import AgentMessageRepository
 from app.repositories.project_repository import ProjectRepository
 from app.schemas.agent import AskRequest
+from app.schemas.report import ReportGenerateRequest
+from app.services.report_service import ReportService
 
 
 class AgentService:
@@ -17,9 +20,11 @@ class AgentService:
         *,
         project_repo: ProjectRepository,
         message_repo: AgentMessageRepository,
+        report_service: ReportService,
     ) -> None:
         self.project_repo = project_repo
         self.message_repo = message_repo
+        self.report_service = report_service
 
     async def ask(
         self,
@@ -34,6 +39,14 @@ class AgentService:
             project_id=project_id,
             current_user=current_user,
         )
+
+        if self._is_report_generation_request(ask_in.question):
+            return await self._generate_report_from_question(
+                db,
+                project_id=project_id,
+                current_user=current_user,
+                ask_in=ask_in,
+            )
 
         agent_result = await self._run_agent(
             project_id=project_id,
@@ -107,3 +120,80 @@ class AgentService:
 
         if project is None:
             raise ProjectNotFoundError
+
+    def _is_report_generation_request(self, question: str) -> bool:
+        normalized_question = question.lower()
+
+        report_keywords = [
+            "generate report",
+            "create report",
+            "business report",
+            "weekly report",
+            "summary report",
+            "сгенерируй отчет",
+            "создай отчет",
+            "бизнес отчет",
+            "аналитический отчет",
+            "отчет",
+        ]
+
+        return any(
+            keyword in normalized_question for keyword in report_keywords
+        )
+
+    async def _generate_report_from_question(
+        self,
+        db: AsyncSession,
+        *,
+        project_id: int,
+        current_user: User,
+        ask_in: AskRequest,
+    ) -> AgentMessage:
+        report = await self.report_service.generate_report(
+            db,
+            project_id=project_id,
+            current_user=current_user,
+            report_in=ReportGenerateRequest(
+                dataset_id=ask_in.dataset_id,
+                pipeline_run_id=ask_in.pipeline_run_id,
+            ),
+        )
+
+        answer = self._build_report_agent_answer(report)
+
+        return await self.message_repo.create(
+            db,
+            project_id=project_id,
+            dataset_id=ask_in.dataset_id,
+            pipeline_run_id=ask_in.pipeline_run_id,
+            report_id=report.id,
+            question=ask_in.question,
+            answer=answer,
+            used_tools=[
+                "report_service.generate_report",
+                "analytics_service.collect_metrics",
+                "llm_service.generate_report_summary",
+            ],
+            sources=[
+                {
+                    "type": "postgres_table",
+                    "name": "reports",
+                    "report_id": report.id,
+                    "project_id": project_id,
+                },
+                {
+                    "type": "analytics_context",
+                    "project_id": project_id,
+                    "dataset_id": ask_in.dataset_id,
+                    "pipeline_run_id": ask_in.pipeline_run_id,
+                },
+            ],
+        )
+
+    def _build_report_agent_answer(self, report: Report) -> str:
+        return (
+            "Business report generated successfully.\n"
+            f"Report ID: {report.id}\n"
+            f"Title: {report.title}\n\n"
+            f"{report.content}"
+        )

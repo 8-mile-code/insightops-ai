@@ -8,6 +8,7 @@ from app.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.project import Project
+    from app.models.report import Report
 
 
 class AgentMessage(Base, TimestampMixin):
@@ -54,6 +55,14 @@ class AgentMessage(Base, TimestampMixin):
         nullable=True,
         index=True,
     )
+
+    report_id: Mapped[int | None] = mapped_column(
+        ForeignKey("reports.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    report: Mapped["Report | None"] = relationship()
 
     project: Mapped["Project"] = relationship(
         back_populates="agent_messages",

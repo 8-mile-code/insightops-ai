@@ -18,6 +18,7 @@ class AskResponse(BaseSchema):
     project_id: int
     dataset_id: int | None
     pipeline_run_id: int | None
+    report_id: int | None
     question: str
     answer: str
     used_tools: list[str]
@@ -31,6 +32,7 @@ class AgentMessageRead(BaseSchema):
     project_id: int
     dataset_id: int | None
     pipeline_run_id: int | None
+    report_id: int | None
     question: str
     answer: str
     used_tools: list[str]

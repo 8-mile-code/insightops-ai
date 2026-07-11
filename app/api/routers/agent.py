@@ -12,7 +12,11 @@ from app.repositories.agent_message_repository import AgentMessageRepository
 from app.repositories.project_repository import ProjectRepository
 from app.schemas.agent import AgentMessageRead, AskRequest, AskResponse
 from app.services.agent_service import AgentService
-
+from app.repositories.analytics_repository import AnalyticsRepository
+from app.repositories.report_repository import ReportRepository
+from app.services.analytics_service import AnalyticsService
+from app.services.llm_service import LLMService
+from app.services.report_service import ReportService
 
 router = APIRouter(
     prefix="/projects/{project_id}/agent",
@@ -21,9 +25,24 @@ router = APIRouter(
 
 
 def get_agent_service() -> AgentService:
+    project_repo = ProjectRepository()
+
+    analytics_service = AnalyticsService(
+        project_repo=project_repo,
+        analytics_repo=AnalyticsRepository(),
+    )
+
+    report_service = ReportService(
+        report_repo=ReportRepository(),
+        project_repo=project_repo,
+        analytics_service=analytics_service,
+        llm_service=LLMService(),
+    )
+
     return AgentService(
-        project_repo=ProjectRepository(),
+        project_repo=project_repo,
         message_repo=AgentMessageRepository(),
+        report_service=report_service,
     )
 
 

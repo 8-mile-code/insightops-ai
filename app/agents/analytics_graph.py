@@ -186,6 +186,7 @@ async def execute_analytics_query(
         mcp_result = await mcp_client.call_tool(
             "get_pipeline_status",
             {
+                "project_id": project_id,
                 "pipeline_run_id": pipeline_run_id,
             },
         )

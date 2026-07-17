@@ -52,3 +52,16 @@ class DatasetRepository:
         await db.commit()
         await db.refresh(dataset)
         return dataset
+
+    async def update_status(
+        self,
+        db: AsyncSession,
+        *,
+        dataset: Dataset,
+        status: DatasetStatus,
+    ) -> Dataset:
+        dataset.status = status
+
+        await db.commit()
+        await db.refresh(dataset)
+        return dataset

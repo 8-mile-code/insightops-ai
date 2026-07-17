@@ -2,7 +2,10 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+from app.db.session import AsyncSessionLocal
+from app.models.enums import PipelineRunStatus
 from app.repositories.analytics_repository import AnalyticsRepository
+from app.repositories.pipeline_run_repository import PipelineRunRepository
 
 mcp = FastMCP(
     "InsightOps Analytics MCP",
@@ -131,28 +134,64 @@ def get_top_customers(
 
 
 @mcp.tool()
-def get_pipeline_status(
+async def get_pipeline_status(
+    project_id: int,
     pipeline_run_id: int,
 ) -> dict[str, Any]:
     """Get the status of a pipeline run."""
+    async with AsyncSessionLocal() as session:
+        pipeline_run = await PipelineRunRepository().get_by_id_and_project(
+            session,
+            pipeline_run_id=pipeline_run_id,
+            project_id=project_id,
+        )
+
+    if pipeline_run is None:
+        return {
+            "tool": "get_pipeline_status",
+            "data": {
+                "pipeline_run_id": pipeline_run_id,
+                "status": "not_found",
+                "message": "Pipeline run not found in this project.",
+            },
+            "sources": [],
+            "metadata": {"found": False},
+        }
+
+    message = pipeline_run.error_message
+    if message is None:
+        if pipeline_run.status == PipelineRunStatus.SUCCESS:
+            message = "Pipeline run completed successfully."
+        else:
+            message = "Pipeline run is still in progress."
+
     return {
         "tool": "get_pipeline_status",
         "data": {
             "pipeline_run_id": pipeline_run_id,
-            "status": "not_implemented",
-            "message": (
-                "Pipeline status tool is registered. "
-                "PostgreSQL-backed implementation will be added next."
+            "dataset_id": pipeline_run.dataset_id,
+            "status": pipeline_run.status.value,
+            "message": message,
+            "started_at": (
+                pipeline_run.started_at.isoformat()
+                if pipeline_run.started_at is not None
+                else None
+            ),
+            "finished_at": (
+                pipeline_run.finished_at.isoformat()
+                if pipeline_run.finished_at is not None
+                else None
             ),
         },
         "sources": [
             {
                 "type": "postgres_table",
                 "name": "pipeline_runs",
+                "project_id": project_id,
                 "pipeline_run_id": pipeline_run_id,
             }
         ],
-        "metadata": {},
+        "metadata": {"found": True},
     }
 
 

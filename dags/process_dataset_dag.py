@@ -15,6 +15,7 @@ import clickhouse_connect  # type: ignore[import-not-found]
 from clickhouse_connect.driver.client import Client  # type: ignore[import-not-found]
 
 PIPELINE_STATUS_RUNNING = "running"
+DATASET_STATUS_FAILED = "failed"
 DATASET_STATUS_PROCESSED = "processed"
 PIPELINE_STATUS_SUCCESS = "success"
 PIPELINE_STATUS_FAILED = "failed"
@@ -59,10 +60,15 @@ def get_clickhouse_client() -> Client:
 def mark_pipeline_run_failed(context: dict[str, Any]) -> None:
     task_instance = context["task_instance"]
     pipeline_run_id = task_instance.xcom_pull(
-        task_ids="create_pipeline_run",
+        task_ids="initialize_pipeline_run",
     )
 
     if pipeline_run_id is None:
+        dag_run = context.get("dag_run")
+        if dag_run is not None:
+            pipeline_run_id = dag_run.conf.get("pipeline_run_id")
+
+    if not pipeline_run_id:
         return
 
     exception = context.get("exception")
@@ -101,6 +107,24 @@ def mark_pipeline_run_failed(context: dict[str, Any]) -> None:
                 ),
             )
 
+            cursor.execute(
+                """
+                UPDATE datasets
+                SET
+                    status = %s,
+                    updated_at = now()
+                WHERE id = (
+                    SELECT dataset_id
+                    FROM pipeline_runs
+                    WHERE id = %s
+                );
+                """,
+                (
+                    DATASET_STATUS_FAILED,
+                    pipeline_run_id,
+                ),
+            )
+
     print(
         f"Pipeline run {pipeline_run_id} failed "
         f"in task={task_instance.task_id}"
@@ -115,43 +139,66 @@ def mark_pipeline_run_failed(context: dict[str, Any]) -> None:
     tags=["insightops", "datasets", "day-9"],
 )
 def process_dataset_dag():
-    @task
-    def create_pipeline_run(dataset_id: int, airflow_run_id: str) -> int:
+    @task(on_failure_callback=mark_pipeline_run_failed)
+    def initialize_pipeline_run(
+        dataset_id: int,
+        airflow_run_id: str,
+        pipeline_run_id: str,
+    ) -> int:
         with get_connection() as conn:
             with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO pipeline_runs (
-                        status,
-                        airflow_run_id,
-                        dataset_id,
-                        started_at,
-                        created_at,
-                        updated_at
+                if pipeline_run_id:
+                    cursor.execute(
+                        """
+                        UPDATE pipeline_runs
+                        SET
+                            status = %s,
+                            started_at = %s,
+                            updated_at = now()
+                        WHERE id = %s AND dataset_id = %s
+                        RETURNING id;
+                        """,
+                        (
+                            PIPELINE_STATUS_RUNNING,
+                            datetime.now(UTC),
+                            int(pipeline_run_id),
+                            int(dataset_id),
+                        ),
                     )
-                    VALUES (
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        now(),
-                        now()
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO pipeline_runs (
+                            status,
+                            airflow_run_id,
+                            dataset_id,
+                            started_at,
+                            created_at,
+                            updated_at
+                        )
+                        VALUES (%s, %s, %s, %s, now(), now())
+                        RETURNING id;
+                        """,
+                        (
+                            PIPELINE_STATUS_RUNNING,
+                            airflow_run_id,
+                            dataset_id,
+                            datetime.now(UTC),
+                        ),
                     )
-                    RETURNING id;
-                    """,
-                    (
-                        PIPELINE_STATUS_RUNNING,
-                        airflow_run_id,
-                        dataset_id,
-                        datetime.now(UTC),
-                    ),
-                )
 
-                pipeline_run_id = cursor.fetchone()[0]
+                row = cursor.fetchone()
 
-        print(f"Created pipeline_run_id={pipeline_run_id}")
+                if row is None:
+                    raise ValueError(
+                        "Pipeline run does not match the dataset."
+                    )
 
-        return pipeline_run_id
+                initialized_pipeline_run_id = row[0]
+
+        print(f"Initialized pipeline_run_id={initialized_pipeline_run_id}")
+
+        return initialized_pipeline_run_id
 
     @task(on_failure_callback=mark_pipeline_run_failed)
     def get_dataset_context(dataset_id: int) -> dict[str, Any]:
@@ -572,9 +619,10 @@ def process_dataset_dag():
 
     dataset_id = "{{ dag_run.conf['dataset_id'] }}"
 
-    pipeline_run_id = create_pipeline_run(
+    pipeline_run_id = initialize_pipeline_run(
         dataset_id=dataset_id,
         airflow_run_id="{{ run_id }}",
+        pipeline_run_id=("{{ dag_run.conf.get('pipeline_run_id', '') }}"),
     )
 
     dataset_context = get_dataset_context(dataset_id)

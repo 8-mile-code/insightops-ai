@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    AIRFLOW_API_BASE_URL: str = "http://localhost:8080"
+    AIRFLOW_API_USERNAME: str = "admin"
+    AIRFLOW_API_PASSWORD: str = "airflow"
+    AIRFLOW_API_TIMEOUT_SECONDS: float = 10.0
+    AIRFLOW_PROCESS_DATASET_DAG_ID: str = "process_dataset"
+
     CLICKHOUSE_HOST: str
     CLICKHOUSE_PORT: int
     CLICKHOUSE_DB: str

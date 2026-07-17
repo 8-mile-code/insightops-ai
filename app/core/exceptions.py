@@ -20,3 +20,11 @@ class ReportNotFoundError(AppError):
 
 class LLMServiceError(AppError):
     """Raised when LLM report generation fails."""
+
+
+class AirflowAPIError(AppError):
+    """Raised when Airflow cannot accept an API request."""
+
+
+class PipelineRunNotFoundError(AppError):
+    """Raised when a pipeline run does not exist or is not accessible."""

@@ -23,6 +23,8 @@ class AnalyticsMCPClient:
             ],
             env={
                 **os.environ,
+                # MCP stdio reserves stdout for JSON-RPC messages.
+                "DEBUG": "false",
                 "CLICKHOUSE_HOST": settings.CLICKHOUSE_HOST,
                 "CLICKHOUSE_PORT": str(settings.CLICKHOUSE_PORT),
                 "CLICKHOUSE_DB": settings.CLICKHOUSE_DB,

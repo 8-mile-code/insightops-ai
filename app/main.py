@@ -7,6 +7,7 @@ from app.api.routers import (
     datasets,
     db_check,
     health,
+    pipeline_runs,
     projects,
     reports,
 )
@@ -23,6 +24,7 @@ app.include_router(db_check.router)
 app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(datasets.router)
+app.include_router(pipeline_runs.router)
 app.include_router(analytics.router)
 app.include_router(reports.router)
 app.include_router(agent.router)

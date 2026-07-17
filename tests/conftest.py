@@ -125,3 +125,35 @@ async def auth_headers(
     return {
         "Authorization": f"Bearer {response.json()['access_token']}",
     }
+
+
+@pytest_asyncio.fixture()
+async def another_auth_headers(
+    client: AsyncClient,
+) -> dict[str, str]:
+    email = "another@example.com"
+    password = "strongpassword"
+
+    register_response = await client.post(
+        "/auth/register",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+    assert register_response.status_code == 201, register_response.text
+
+    login_response = await client.post(
+        "/auth/login",
+        data={
+            "username": email,
+            "password": password,
+        },
+    )
+    assert login_response.status_code == 200, login_response.text
+
+    return {
+        "Authorization": (
+            f"Bearer {login_response.json()['access_token']}"
+        ),
+    }

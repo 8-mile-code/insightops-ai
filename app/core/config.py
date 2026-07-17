@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     DB_HOST: str
     DB_PORT: int
     POSTGRES_DB: str
+    TEST_POSTGRES_DB: str = "insightops_test"
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
 
@@ -47,6 +48,14 @@ class Settings(BaseSettings):
             f"postgresql+asyncpg://"
             f"{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
             f"{self.DB_HOST}:{self.DB_PORT}/{self.POSTGRES_DB}"
+        )
+
+    @property
+    def TEST_DATABASE_URL_ASYNC(self) -> str:
+        return (
+            f"postgresql+asyncpg://"
+            f"{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
+            f"{self.DB_HOST}:{self.DB_PORT}/{self.TEST_POSTGRES_DB}"
         )
 
 

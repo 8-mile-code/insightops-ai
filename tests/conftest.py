@@ -1,4 +1,5 @@
 import os
+import pytest
 from collections.abc import AsyncGenerator
 
 import pytest_asyncio
@@ -157,3 +158,36 @@ async def another_auth_headers(
             f"Bearer {login_response.json()['access_token']}"
         ),
     }
+
+
+@pytest_asyncio.fixture()
+async def project_id(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+) -> int:
+    response = await client.post(
+        "/projects",
+        headers=auth_headers,
+        json={
+            "name": "Test Project",
+            "description": "Project for dataset tests",
+        },
+    )
+
+    assert response.status_code == 201, response.text
+
+    return int(response.json()["id"])
+
+
+@pytest.fixture(autouse=True)
+def override_upload_dir(tmp_path, monkeypatch) -> None:
+    from app.api.routers import datasets as datasets_router
+
+    upload_dir = tmp_path / "uploads" / "datasets"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(
+        datasets_router,
+        "UPLOAD_DIR",
+        upload_dir,
+    )

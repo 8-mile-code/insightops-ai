@@ -1,0 +1,6 @@
+order_id,customer_id,amount,status,created_at
+ord_001,cust_001,120.50,paid,2026-01-01T10:00:00
+ord_002,cust_002,89.99,paid,2026-01-01T12:30:00
+ord_003,cust_001,45.00,failed,2026-01-02T09:15:00
+ord_004,cust_003,300.00,pending,2026-01-02T14:45:00
+ord_005,cust_002,150.00,paid,2026-01-03T11:00:00

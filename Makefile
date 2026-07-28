@@ -3,7 +3,7 @@ APP_DEBUG ?= true
 .PHONY: help install dev test lint format fix check \
 	postgres-up migrate revision migration-current \
 	docker-up docker-down docker-ps docker-logs airflow-errors \
-	clickhouse-init
+	clickhouse-init seed-demo
 
 help:
 	@echo "Available commands:"
@@ -24,6 +24,7 @@ help:
 	@echo "  make docker-logs                     Follow Docker logs"
 	@echo "  make airflow-errors                  Show DAG import errors"
 	@echo "  make clickhouse-init                 Create ClickHouse tables"
+	@echo "  make seed-demo                       Seed demo data"
 
 install:
 	uv sync --dev
@@ -76,3 +77,6 @@ airflow-errors:
 
 clickhouse-init:
 	env DEBUG=$(APP_DEBUG) uv run python -m scripts.create_clickhouse_tables
+
+seed-demo:
+	env DEBUG=$(APP_DEBUG) uv run python -m scripts.seed_demo_data

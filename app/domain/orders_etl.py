@@ -70,9 +70,7 @@ def validate_row(
     for column in REQUIRED_COLUMNS:
         value = row.get(column)
 
-        if value is None or (
-            isinstance(value, str) and not value.strip()
-        ):
+        if value is None or (isinstance(value, str) and not value.strip()):
             errors.append(
                 {
                     "type": "empty_value",
@@ -86,15 +84,13 @@ def validate_row(
 
     if amount is not None:
         normalized_amount = (
-            amount.strip()
-            if isinstance(amount, str)
-            else amount
+            amount.strip() if isinstance(amount, str) else amount
         )
 
         if normalized_amount != "":
             try:
                 float(normalized_amount)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 errors.append(
                     {
                         "type": "invalid_amount",
@@ -126,9 +122,7 @@ def validate_row(
 
     if isinstance(created_at, str) and created_at.strip():
         try:
-            datetime.fromisoformat(
-                created_at.strip().replace("Z", "+00:00")
-            )
+            datetime.fromisoformat(created_at.strip().replace("Z", "+00:00"))
         except ValueError:
             errors.append(
                 {
@@ -153,8 +147,7 @@ def transform_row(
         )
     except ValueError as error:
         raise ValueError(
-            f"Invalid created_at value at row {row_index}: "
-            f"{row['created_at']}"
+            f"Invalid created_at value at row {row_index}: {row['created_at']}"
         ) from error
 
     return {
@@ -191,9 +184,9 @@ def build_aggregates(
     for row in transformed_rows:
         status = row["status"]
         amount = float(row["amount"])
-        order_date = datetime.fromisoformat(
-            row["created_at"]
-        ).date().isoformat()
+        order_date = (
+            datetime.fromisoformat(row["created_at"]).date().isoformat()
+        )
 
         orders_by_status[status] += 1
 

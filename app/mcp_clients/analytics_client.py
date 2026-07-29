@@ -5,10 +5,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from app.core.config import settings
-
-
-class MCPToolCallError(Exception):
-    """Raised when an MCP tool call fails."""
+from app.core.exceptions import MCPToolCallError
 
 
 class AnalyticsMCPClient:
@@ -49,6 +46,10 @@ class AnalyticsMCPClient:
                         tool_name,
                         arguments=arguments,
                     )
+                    if result.isError:
+                        raise MCPToolCallError(
+                            f"MCP tool returned an error: {tool_name}"
+                        )
 
             if result.structuredContent is not None:
                 return dict(result.structuredContent)
@@ -62,6 +63,8 @@ class AnalyticsMCPClient:
                 },
             }
 
+        except MCPToolCallError:
+            raise
         except Exception as error:
             raise MCPToolCallError(
                 f"MCP tool call failed: {tool_name}"

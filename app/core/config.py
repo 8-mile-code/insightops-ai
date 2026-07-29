@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str | None = None
     LLM_TIMEOUT_SECONDS: float = 15.0
 
+    LOG_LEVEL: str = "INFO"
+    LOG_JSON: bool = False
+    REQUEST_ID_HEADER: str = "X-Request-ID"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

@@ -131,6 +131,7 @@ async def test_process_dataset_returns_503_when_airflow_unavailable(
 
     assert response.status_code == 503
     assert response.json()["detail"] == "Airflow API is unavailable."
+    assert response.json()["error"]["code"] == "airflow_api_error"
 
     pipeline_runs_response = await client.get(
         f"/datasets/{dataset_id}/pipeline-runs",
@@ -240,3 +241,4 @@ async def test_cannot_get_another_users_pipeline_run(
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Pipeline run not found"
+    assert response.json()["error"]["code"] == "pipeline_run_not_found"

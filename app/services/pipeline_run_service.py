@@ -1,3 +1,4 @@
+import logging
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,8 @@ from app.repositories.dataset_repository import DatasetRepository
 from app.repositories.pipeline_run_repository import PipelineRunRepository
 from app.schemas.pipeline_run import PipelineRunTriggered
 from app.services.dataset_service import DatasetService
+
+logger = logging.getLogger(__name__)
 
 
 class PipelineRunService:
@@ -38,6 +41,14 @@ class PipelineRunService:
         dataset_id: int,
         current_user: User,
     ) -> PipelineRunTriggered:
+        logger.info(
+            "dataset_processing_requested",
+            extra={
+                "dataset_id": dataset_id,
+                "user_id": current_user.id,
+            },
+        )
+
         dataset = await self.dataset_service.get_user_dataset(
             db,
             dataset_id=dataset_id,
@@ -48,6 +59,15 @@ class PipelineRunService:
             db,
             dataset_id=dataset.id,
             airflow_run_id=airflow_run_id,
+        )
+        logger.info(
+            "pipeline_run_created",
+            extra={
+                "dataset_id": dataset.id,
+                "pipeline_run_id": pipeline_run.id,
+                "airflow_run_id": airflow_run_id,
+                "user_id": current_user.id,
+            },
         )
 
         try:
@@ -60,11 +80,30 @@ class PipelineRunService:
                     "pipeline_run_id": pipeline_run.id,
                 },
             )
+            logger.info(
+                "airflow_dag_triggered",
+                extra={
+                    "dataset_id": dataset.id,
+                    "pipeline_run_id": pipeline_run.id,
+                    "airflow_run_id": airflow_run_id,
+                    "user_id": current_user.id,
+                },
+            )
+
         except AirflowAPIError as error:
             await self.pipeline_run_repo.mark_failed(
                 db,
                 pipeline_run=pipeline_run,
                 error_message=str(error),
+            )
+            logger.exception(
+                "airflow_dag_trigger_failed",
+                extra={
+                    "dataset_id": dataset.id,
+                    "pipeline_run_id": pipeline_run.id,
+                    "airflow_run_id": airflow_run_id,
+                    "user_id": current_user.id,
+                },
             )
             raise
 

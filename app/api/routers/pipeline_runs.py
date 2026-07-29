@@ -1,16 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.api.routers.datasets import get_dataset_service
 from app.clients.airflow_client import AirflowClient
-from app.core.exceptions import (
-    AirflowAPIError,
-    PipelineRunNotFoundError,
-    ProjectNotFoundError,
-)
+
 from app.db.session import get_db
 from app.models.pipeline_run import PipelineRun
 from app.models.user import User
@@ -46,22 +42,11 @@ async def process_dataset(
         Depends(get_pipeline_run_service),
     ],
 ) -> PipelineRunTriggered:
-    try:
-        return await pipeline_service.start_dataset_processing(
-            db,
-            dataset_id=dataset_id,
-            current_user=current_user,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dataset not found",
-        ) from error
-    except AirflowAPIError as error:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(error),
-        ) from error
+    return await pipeline_service.start_dataset_processing(
+        db,
+        dataset_id=dataset_id,
+        current_user=current_user,
+    )
 
 
 @router.get(
@@ -77,17 +62,11 @@ async def get_dataset_pipeline_runs(
         Depends(get_pipeline_run_service),
     ],
 ) -> list[PipelineRun]:
-    try:
-        return await pipeline_service.get_dataset_pipeline_runs(
-            db,
-            dataset_id=dataset_id,
-            current_user=current_user,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dataset not found",
-        ) from error
+    return await pipeline_service.get_dataset_pipeline_runs(
+        db,
+        dataset_id=dataset_id,
+        current_user=current_user,
+    )
 
 
 @router.get(
@@ -103,14 +82,8 @@ async def get_pipeline_run(
         Depends(get_pipeline_run_service),
     ],
 ) -> PipelineRun:
-    try:
-        return await pipeline_service.get_pipeline_run(
-            db,
-            pipeline_run_id=pipeline_run_id,
-            current_user=current_user,
-        )
-    except PipelineRunNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Pipeline run not found",
-        ) from error
+    return await pipeline_service.get_pipeline_run(
+        db,
+        pipeline_run_id=pipeline_run_id,
+        current_user=current_user,
+    )

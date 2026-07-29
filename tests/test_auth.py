@@ -35,11 +35,28 @@ async def test_register_duplicate_email_returns_400(
     assert second_response.json()["detail"] == (
         "User with this email already exists"
     )
+    assert second_response.json()["error"]["code"] == "user_already_exists"
+
+
+async def test_login_invalid_credentials_returns_401(
+    registered_user: dict,
+    client: AsyncClient,
+) -> None:
+    response = await client.post(
+        "/auth/login",
+        data={
+            "username": registered_user["email"],
+            "password": "wrongpassword",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "invalid_credentials"
+    assert response.headers["WWW-Authenticate"] == "Bearer"
 
 
 async def test_login_user_returns_access_token(
-    registered_user: dict,
-    client: AsyncClient
+    registered_user: dict, client: AsyncClient
 ) -> None:
     response = await client.post(
         "/auth/login",

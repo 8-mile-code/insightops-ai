@@ -14,10 +14,8 @@ from app.agents.analytics_tools import (
     get_top_customers_tool,
 )
 from app.agents.tool_result import ToolResult
-from app.mcp_clients.analytics_client import (
-    AnalyticsMCPClient,
-    MCPToolCallError,
-)
+from app.core.exceptions import MCPToolCallError
+from app.mcp_clients.analytics_client import AnalyticsMCPClient
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +80,16 @@ async def execute_analytics_query(
 ) -> dict[str, Any]:
     action = state["action"]
 
+    logger.info(
+        "agent_action_selected",
+        extra={
+            "agent_action": action,
+            "project_id": state.get("project_id"),
+            "dataset_id": state.get("dataset_id"),
+            "pipeline_run_id": state.get("pipeline_run_id"),
+        },
+    )
+
     if action == "unknown":
         return {
             "tool_result": {"error": "I could not choose an analytics action."}
@@ -111,6 +119,7 @@ async def execute_analytics_query(
             mcp_arguments=common_arguments,
             fallback_tool=get_daily_revenue_tool,
             fallback_arguments=common_arguments,
+            state=state,
         )
 
     if action == "orders_by_status":
@@ -119,7 +128,7 @@ async def execute_analytics_query(
             dataset_id=dataset_id,
             pipeline_run_id=pipeline_run_id,
         )
-        return _build_tool_state_update(result)
+        return _build_tool_state_update(result, state)
 
     if action == "failed_payments":
         return await _call_mcp_tool_with_fallback(
@@ -127,6 +136,7 @@ async def execute_analytics_query(
             mcp_arguments=common_arguments,
             fallback_tool=get_failed_payments_tool,
             fallback_arguments=common_arguments,
+            state=state,
         )
 
     if action == "top_customers":
@@ -139,6 +149,7 @@ async def execute_analytics_query(
             mcp_arguments=arguments,
             fallback_tool=get_top_customers_tool,
             fallback_arguments=arguments,
+            state=state,
         )
 
     if action == "compare_periods":
@@ -162,7 +173,7 @@ async def execute_analytics_query(
             pipeline_run_id=pipeline_run_id,
             compare_pipeline_run_id=compare_pipeline_run_id,
         )
-        return _build_tool_state_update(result)
+        return _build_tool_state_update(result, state)
 
     if action == "generate_report":
         result = generate_report_tool(
@@ -170,7 +181,7 @@ async def execute_analytics_query(
             dataset_id=dataset_id,
             pipeline_run_id=pipeline_run_id,
         )
-        return _build_tool_state_update(result)
+        return _build_tool_state_update(result, state)
 
     if action == "pipeline_status":
         if pipeline_run_id is None:
@@ -188,6 +199,16 @@ async def execute_analytics_query(
             {
                 "project_id": project_id,
                 "pipeline_run_id": pipeline_run_id,
+            },
+        )
+        logger.info(
+            "agent_mcp_tool_executed",
+            extra={
+                "tool_name": "get_pipeline_status",
+                "agent_action": state.get("action"),
+                "project_id": state.get("project_id"),
+                "dataset_id": state.get("dataset_id"),
+                "pipeline_run_id": state.get("pipeline_run_id"),
             },
         )
 
@@ -356,10 +377,20 @@ def _format_pipeline_status(data: dict[str, Any]) -> str:
 
 def _build_tool_state_update(
     tool_result: ToolResult,
+    state: AnalyticsAgentState,
 ) -> dict[str, Any]:
     tool_name = tool_result["tool_name"]
 
-    logger.info("Agent used tool: %s", tool_name)
+    logger.info(
+        "agent_tool_executed",
+        extra={
+            "tool_name": tool_name,
+            "agent_action": state.get("action"),
+            "project_id": state.get("project_id"),
+            "dataset_id": state.get("dataset_id"),
+            "pipeline_run_id": state.get("pipeline_run_id"),
+        },
+    )
 
     return {
         "tool_result": tool_result,
@@ -374,6 +405,7 @@ async def _call_mcp_tool_with_fallback(
     mcp_arguments: dict[str, Any],
     fallback_tool,
     fallback_arguments: dict[str, Any],
+    state: AnalyticsAgentState,
 ) -> dict[str, Any]:
     mcp_client = AnalyticsMCPClient()
 
@@ -383,7 +415,16 @@ async def _call_mcp_tool_with_fallback(
             mcp_arguments,
         )
 
-        logger.info("Agent used MCP tool: %s", mcp_tool_name)
+        logger.info(
+            "agent_mcp_tool_executed",
+            extra={
+                "tool_name": mcp_tool_name,
+                "agent_action": state.get("action"),
+                "project_id": state.get("project_id"),
+                "dataset_id": state.get("dataset_id"),
+                "pipeline_run_id": state.get("pipeline_run_id"),
+            },
+        )
 
         return {
             "tool_result": _normalize_mcp_result(
@@ -403,6 +444,17 @@ async def _call_mcp_tool_with_fallback(
 
         fallback_result = fallback_tool(**fallback_arguments)
         fallback_result["metadata"]["fallback_reason"] = str(error)
+
+        logger.warning(
+            "agent_tool_fallback_used",
+            extra={
+                "tool_name": fallback_result["tool_name"],
+                "agent_action": state.get("action"),
+                "project_id": state.get("project_id"),
+                "dataset_id": state.get("dataset_id"),
+                "pipeline_run_id": state.get("pipeline_run_id"),
+            },
+        )
 
         return {
             "tool_result": fallback_result,

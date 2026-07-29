@@ -1,10 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
-from app.core.exceptions import ProjectNotFoundError, ReportNotFoundError
 from app.db.session import get_db
 from app.models.report import Report
 from app.models.user import User
@@ -51,18 +50,12 @@ async def generate_report(
         Depends(get_report_service),
     ],
 ) -> Report:
-    try:
-        return await report_service.generate_report(
-            db,
-            project_id=project_id,
-            current_user=current_user,
-            report_in=report_in,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        ) from error
+    return await report_service.generate_report(
+        db,
+        project_id=project_id,
+        current_user=current_user,
+        report_in=report_in,
+    )
 
 
 @router.get(
@@ -78,17 +71,11 @@ async def get_project_reports(
         Depends(get_report_service),
     ],
 ) -> list[Report]:
-    try:
-        return await report_service.get_project_reports(
-            db,
-            project_id=project_id,
-            current_user=current_user,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        ) from error
+    return await report_service.get_project_reports(
+        db,
+        project_id=project_id,
+        current_user=current_user,
+    )
 
 
 @router.get(
@@ -104,14 +91,8 @@ async def get_report(
         Depends(get_report_service),
     ],
 ) -> Report:
-    try:
-        return await report_service.get_report(
-            db,
-            report_id=report_id,
-            current_user=current_user,
-        )
-    except ReportNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Report not found",
-        ) from error
+    return await report_service.get_report(
+        db,
+        report_id=report_id,
+        current_user=current_user,
+    )

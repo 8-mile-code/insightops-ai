@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.core.exceptions import ProjectNotFoundError
+from app.core.exceptions import DatasetNotFoundError
 from app.models.user import User
 from app.services.dataset_service import DatasetService
 
@@ -69,7 +69,7 @@ async def test_get_missing_dataset_raises_not_found() -> None:
         file_storage_service=file_storage_service,
     )
 
-    with pytest.raises(ProjectNotFoundError):
+    with pytest.raises(DatasetNotFoundError):
         await service.get_user_dataset(
             db,
             dataset_id=999,

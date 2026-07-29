@@ -1,10 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
-from app.core.exceptions import ProjectNotFoundError
 from app.db.session import get_db
 from app.models.agent_message import AgentMessage
 from app.models.user import User
@@ -58,18 +57,12 @@ async def ask_agent(
     current_user: Annotated[User, Depends(get_current_user)],
     agent_service: Annotated[AgentService, Depends(get_agent_service)],
 ) -> AgentMessage:
-    try:
-        return await agent_service.ask(
-            db,
-            project_id=project_id,
-            current_user=current_user,
-            ask_in=ask_in,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        ) from error
+    return await agent_service.ask(
+        db,
+        project_id=project_id,
+        current_user=current_user,
+        ask_in=ask_in,
+    )
 
 
 @router.get(
@@ -82,14 +75,8 @@ async def get_agent_messages(
     current_user: Annotated[User, Depends(get_current_user)],
     agent_service: Annotated[AgentService, Depends(get_agent_service)],
 ) -> list[AgentMessage]:
-    try:
-        return await agent_service.get_project_messages(
-            db,
-            project_id=project_id,
-            current_user=current_user,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        ) from error
+    return await agent_service.get_project_messages(
+        db,
+        project_id=project_id,
+        current_user=current_user,
+    )

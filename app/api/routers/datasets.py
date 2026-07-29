@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
-from app.core.exceptions import ProjectNotFoundError
 from app.db.session import get_db
 from app.models.dataset import Dataset
 from app.models.user import User
@@ -63,20 +62,14 @@ async def upload_dataset(
 
     content = await file.read()
 
-    try:
-        return await dataset_service.create_dataset(
-            db,
-            project_id=project_id,
-            current_user=current_user,
-            name=file.filename or safe_filename,
-            file_path=str(file_path),
-            file_content=content,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        ) from error
+    return await dataset_service.create_dataset(
+        db,
+        project_id=project_id,
+        current_user=current_user,
+        name=file.filename or safe_filename,
+        file_path=str(file_path),
+        file_content=content,
+    )
 
 
 @router.get(
@@ -89,17 +82,11 @@ async def get_project_datasets(
     current_user: Annotated[User, Depends(get_current_user)],
     dataset_service: Annotated[DatasetService, Depends(get_dataset_service)],
 ) -> list[Dataset]:
-    try:
-        return await dataset_service.get_project_datasets(
-            db,
-            project_id=project_id,
-            current_user=current_user,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        ) from error
+    return await dataset_service.get_project_datasets(
+        db,
+        project_id=project_id,
+        current_user=current_user,
+    )
 
 
 @router.get(
@@ -112,17 +99,11 @@ async def get_dataset(
     current_user: Annotated[User, Depends(get_current_user)],
     dataset_service: Annotated[DatasetService, Depends(get_dataset_service)],
 ) -> Dataset:
-    try:
-        return await dataset_service.get_user_dataset(
-            db,
-            dataset_id=dataset_id,
-            current_user=current_user,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dataset not found",
-        ) from error
+    return await dataset_service.get_user_dataset(
+        db,
+        dataset_id=dataset_id,
+        current_user=current_user,
+    )
 
 
 @router.post(
@@ -139,19 +120,13 @@ async def validate_dataset(
         Depends(get_dataset_validation_service),
     ],
 ) -> Dataset:
-    try:
-        dataset = await dataset_service.get_user_dataset(
-            db,
-            dataset_id=dataset_id,
-            current_user=current_user,
-        )
+    dataset = await dataset_service.get_user_dataset(
+        db,
+        dataset_id=dataset_id,
+        current_user=current_user,
+    )
 
-        return await validation_service.validate_dataset(
-            db,
-            dataset=dataset,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dataset not found",
-        ) from error
+    return await validation_service.validate_dataset(
+        db,
+        dataset=dataset,
+    )

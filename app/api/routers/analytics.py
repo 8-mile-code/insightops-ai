@@ -1,10 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
-from app.core.exceptions import ProjectNotFoundError
 from app.db.session import get_db
 from app.models.user import User
 from app.repositories.analytics_repository import AnalyticsRepository
@@ -46,19 +45,13 @@ async def get_daily_revenue(
     dataset_id: int | None = None,
     pipeline_run_id: int | None = None,
 ) -> list[dict]:
-    try:
-        return await analytics_service.get_daily_revenue(
-            db,
-            project_id=project_id,
-            current_user=current_user,
-            dataset_id=dataset_id,
-            pipeline_run_id=pipeline_run_id,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        ) from error
+    return await analytics_service.get_daily_revenue(
+        db,
+        project_id=project_id,
+        current_user=current_user,
+        dataset_id=dataset_id,
+        pipeline_run_id=pipeline_run_id,
+    )
 
 
 @router.get(
@@ -76,19 +69,13 @@ async def get_orders_by_status(
     dataset_id: int | None = None,
     pipeline_run_id: int | None = None,
 ) -> list[dict]:
-    try:
-        return await analytics_service.get_orders_by_status(
-            db,
-            project_id=project_id,
-            current_user=current_user,
-            dataset_id=dataset_id,
-            pipeline_run_id=pipeline_run_id,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        ) from error
+    return await analytics_service.get_orders_by_status(
+        db,
+        project_id=project_id,
+        current_user=current_user,
+        dataset_id=dataset_id,
+        pipeline_run_id=pipeline_run_id,
+    )
 
 
 @router.get(
@@ -106,19 +93,13 @@ async def get_failed_payments(
     dataset_id: int | None = None,
     pipeline_run_id: int | None = None,
 ) -> dict:
-    try:
-        return await analytics_service.get_failed_payments(
-            db,
-            project_id=project_id,
-            current_user=current_user,
-            dataset_id=dataset_id,
-            pipeline_run_id=pipeline_run_id,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        ) from error
+    return await analytics_service.get_failed_payments(
+        db,
+        project_id=project_id,
+        current_user=current_user,
+        dataset_id=dataset_id,
+        pipeline_run_id=pipeline_run_id,
+    )
 
 
 @router.get(
@@ -137,17 +118,11 @@ async def get_top_customers(
     pipeline_run_id: int | None = None,
     limit: int = Query(default=5, ge=1, le=50),
 ) -> list[dict]:
-    try:
-        return await analytics_service.get_top_customers(
-            db,
-            project_id=project_id,
-            current_user=current_user,
-            dataset_id=dataset_id,
-            pipeline_run_id=pipeline_run_id,
-            limit=limit,
-        )
-    except ProjectNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        ) from error
+    return await analytics_service.get_top_customers(
+        db,
+        project_id=project_id,
+        current_user=current_user,
+        dataset_id=dataset_id,
+        pipeline_run_id=pipeline_run_id,
+        limit=limit,
+    )

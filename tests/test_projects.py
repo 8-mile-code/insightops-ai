@@ -81,6 +81,7 @@ async def test_cannot_get_another_user_project(
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Project not found"
+    assert response.json()["error"]["code"] == "project_not_found"
 
 
 async def test_cannot_delete_another_user_project(

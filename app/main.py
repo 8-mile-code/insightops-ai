@@ -12,12 +12,20 @@ from app.api.routers import (
     reports,
 )
 from app.core.config import settings
+from app.core.exception_handlers import register_exception_handlers
+from app.core.logging import configure_logging
+from app.middleware.request_id import RequestIDMiddleware
+
+configure_logging()
 
 app = FastAPI(
     title=settings.APP_TITLE,
     description=settings.APP_DESCRIPTION,
     debug=settings.DEBUG,
 )
+
+app.add_middleware(RequestIDMiddleware)
+register_exception_handlers(app)
 
 app.include_router(health.router)
 app.include_router(db_check.router)

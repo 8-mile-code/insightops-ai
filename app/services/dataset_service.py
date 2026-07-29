@@ -2,7 +2,7 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ProjectNotFoundError
+from app.core.exceptions import DatasetNotFoundError, ProjectNotFoundError
 from app.models.dataset import Dataset
 from app.models.user import User
 from app.repositories.dataset_repository import DatasetRepository
@@ -64,12 +64,15 @@ class DatasetService:
         dataset = await self.repo.get_by_id(db, dataset_id)
 
         if dataset is None:
-            raise ProjectNotFoundError
+            raise DatasetNotFoundError
 
-        await self.project_service.get_user_project(
-            db,
-            project_id=dataset.project_id,
-            current_user=current_user,
-        )
+        try:
+            await self.project_service.get_user_project(
+                db,
+                project_id=dataset.project_id,
+                current_user=current_user,
+            )
+        except ProjectNotFoundError as error:
+            raise DatasetNotFoundError from error
 
         return dataset

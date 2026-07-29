@@ -149,6 +149,7 @@ async def test_cannot_upload_dataset_to_another_user_project(
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Project not found"
+    assert response.json()["error"]["code"] == "project_not_found"
 
 
 async def test_cannot_get_another_users_dataset(
@@ -178,6 +179,7 @@ async def test_cannot_get_another_users_dataset(
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Dataset not found"
+    assert response.json()["error"]["code"] == "dataset_not_found"
 
 
 async def test_validate_valid_dataset(

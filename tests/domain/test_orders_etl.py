@@ -144,3 +144,87 @@ def test_build_aggregates() -> None:
         "customer_id": "cust_001",
         "revenue": 120.50,
     }
+
+
+def test_validate_rows_rejects_empty_input() -> None:
+    result = validate_rows([])
+
+    assert result == {
+        "is_valid": False,
+        "errors": [
+            {
+                "type": "empty_file",
+                "message": "CSV file is empty or contains only headers.",
+            }
+        ],
+        "rows_count": 0,
+    }
+
+
+def test_validate_rows_detects_invalid_created_at() -> None:
+    rows = [
+        {
+            "order_id": "ord_001",
+            "customer_id": "cust_001",
+            "amount": "120.50",
+            "status": "paid",
+            "created_at": "not-a-date",
+        }
+    ]
+
+    result = validate_rows(rows)
+
+    assert result["is_valid"] is False
+    assert result["rows_count"] == 1
+    assert result["errors"] == [
+        {
+            "type": "invalid_created_at",
+            "message": "Created at must be a valid ISO datetime.",
+            "row": 2,
+            "column": "created_at",
+            "value": "not-a-date",
+        }
+    ]
+
+
+def test_validate_rows_treats_whitespace_as_empty() -> None:
+    rows = [
+        {
+            "order_id": "ord_001",
+            "customer_id": "   ",
+            "amount": "   ",
+            "status": "paid",
+            "created_at": "2026-01-01T10:00:00",
+        }
+    ]
+
+    result = validate_rows(rows)
+
+    errors = {
+        (error["type"], error.get("column"))
+        for error in result["errors"]
+    }
+
+    assert result["is_valid"] is False
+    assert errors == {
+        ("empty_value", "customer_id"),
+        ("empty_value", "amount"),
+    }
+
+
+def test_validate_rows_accepts_normalized_values() -> None:
+    rows = [
+        {
+            "order_id": "ord_001",
+            "customer_id": "cust_001",
+            "amount": " 120.50 ",
+            "status": " PAID ",
+            "created_at": " 2026-01-01T10:00:00Z ",
+        }
+    ]
+
+    result = validate_rows(rows)
+
+    assert result["is_valid"] is True
+    assert result["errors"] == []
+    assert result["rows_count"] == 1

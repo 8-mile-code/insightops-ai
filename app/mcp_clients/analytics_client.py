@@ -1,4 +1,5 @@
 import os
+import sys
 from typing import Any
 
 from mcp import ClientSession, StdioServerParameters
@@ -11,16 +12,13 @@ from app.core.exceptions import MCPToolCallError
 class AnalyticsMCPClient:
     def _get_server_params(self) -> StdioServerParameters:
         return StdioServerParameters(
-            command="uv",
+            command=sys.executable,
             args=[
-                "run",
-                "python",
                 "-m",
                 "app.mcp_servers.analytics_server",
             ],
             env={
                 **os.environ,
-                # MCP stdio reserves stdout for JSON-RPC messages.
                 "DEBUG": "false",
                 "CLICKHOUSE_HOST": settings.CLICKHOUSE_HOST,
                 "CLICKHOUSE_PORT": str(settings.CLICKHOUSE_PORT),

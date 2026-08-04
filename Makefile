@@ -1,5 +1,3 @@
-APP_DEBUG ?= true
-
 .PHONY: help install dev test lint format fix check \
 	postgres-up migrate revision migration-current \
 	docker-up docker-down docker-ps docker-logs airflow-errors \
@@ -30,7 +28,7 @@ install:
 	uv sync --dev
 
 dev:
-	env DEBUG=$(APP_DEBUG) uv run uvicorn app.main:app --reload
+	uv run uvicorn app.main:app --reload
 
 test:
 	uv run pytest
@@ -51,17 +49,17 @@ postgres-up:
 	docker compose up -d postgres
 
 migrate: postgres-up
-	env DEBUG=$(APP_DEBUG) uv run alembic upgrade head
+	uv run alembic upgrade head
 
 revision: postgres-up
 	@test -n "$(MESSAGE)" || (echo 'MESSAGE is required. Example: make revision MESSAGE="add reports table"' && exit 1)
-	env DEBUG=$(APP_DEBUG) uv run alembic revision --autogenerate -m "$(MESSAGE)"
+	uv run alembic revision --autogenerate -m "$(MESSAGE)"
 
 migration-current: postgres-up
-	env DEBUG=$(APP_DEBUG) uv run alembic current
+	uv run alembic current
 
 docker-up:
-	docker compose up -d
+	docker compose up -d --build
 
 docker-down:
 	docker compose down
@@ -76,7 +74,7 @@ airflow-errors:
 	docker compose exec airflow-scheduler airflow dags list-import-errors
 
 clickhouse-init:
-	env DEBUG=$(APP_DEBUG) uv run python -m scripts.create_clickhouse_tables
+	uv run python -m scripts.create_clickhouse_tables
 
 seed-demo:
-	env DEBUG=$(APP_DEBUG) uv run python -m scripts.seed_demo_data
+	uv run python -m scripts.seed_demo_data

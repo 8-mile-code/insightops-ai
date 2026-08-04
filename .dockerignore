@@ -73,3 +73,10 @@ temp/
 .github/
 .gitlab-ci.yml
 .circleci/
+
+# Runtime data
+uploads/
+
+# Tool caches
+.ruff_cache/
+.uv-cache/

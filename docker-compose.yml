@@ -25,6 +25,8 @@ x-airflow-common-env: &airflow-common-env
   AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-webserver:8080/execution/
   AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_API_AUTH_JWT_SECRET}
   AIRFLOW__API_AUTH__JWT_ISSUER: ${AIRFLOW_API_AUTH_JWT_ISSUER}
+  AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: ${AIRFLOW_API_USERNAME}:admin
+  AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/config/simple_auth_manager_passwords.json
   INSIGHTOPS_DB_HOST: postgres
   INSIGHTOPS_DB_PORT: 5432
   INSIGHTOPS_DB_USER: ${POSTGRES_USER}
@@ -41,6 +43,7 @@ x-airflow-common-volumes: &airflow-common-volumes
   - ./logs:/opt/airflow/logs
   - ./plugins:/opt/airflow/plugins
   - ./uploads:/opt/airflow/uploads
+  - airflow_config:/opt/airflow/config
 
 services:
   postgres:
@@ -152,12 +155,16 @@ services:
     environment:
       <<: *airflow-common-env
       _AIRFLOW_DB_MIGRATE: "true"
-      _AIRFLOW_WWW_USER_CREATE: "true"
-      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME}
-      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD}
+      AIRFLOW_API_USERNAME: ${AIRFLOW_API_USERNAME}
+      AIRFLOW_API_PASSWORD: ${AIRFLOW_API_PASSWORD}
     user: "${AIRFLOW_UID}:0"
     volumes: *airflow-common-volumes
-    command: version
+    command:
+      - bash
+      - -c
+      - >
+        python /opt/airflow/init_simple_auth.py
+        && airflow version
 
   airflow-webserver:
     <<: *airflow-image
@@ -243,3 +250,4 @@ volumes:
   airflow_postgres_data:
   clickhouse_data:
   clickhouse_logs:
+  airflow_config:

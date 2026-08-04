@@ -1,3 +1,17 @@
+x-backend-common: &backend-common
+  build:
+    context: .
+    dockerfile: docker/backend/Dockerfile
+  image: insightops-backend:0.1.0
+  env_file:
+    - .env
+  environment:
+    DB_HOST: postgres
+    DB_PORT: 5432
+    CLICKHOUSE_HOST: clickhouse
+    CLICKHOUSE_PORT: 8123
+    AIRFLOW_API_BASE_URL: http://airflow-webserver:8080
+
 x-airflow-common-env: &airflow-common-env
   AIRFLOW__CORE__EXECUTOR: LocalExecutor
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_POSTGRES_USER}:${AIRFLOW_POSTGRES_PASSWORD}@airflow-postgres:5432/${AIRFLOW_POSTGRES_DB}
@@ -42,26 +56,43 @@ services:
       retries: 10
       start_period: 5s
 
+  backend-migrate:
+    <<: *backend-common
+    container_name: insightops_backend_migrate
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - alembic
+      - upgrade
+      - head
+
+  clickhouse-init:
+    <<: *backend-common
+    container_name: insightops_clickhouse_init
+    restart: "no"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    command:
+      - python
+      - -m
+      - scripts.create_clickhouse_tables
+
   backend:
-    build:
-      context: .
-      dockerfile: docker/backend/Dockerfile
-    image: insightops-backend:0.1.0
+    <<: *backend-common
     container_name: insightops_backend
     restart: always
-    env_file:
-      - .env
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      CLICKHOUSE_HOST: clickhouse
-      CLICKHOUSE_PORT: 8123
-      AIRFLOW_API_BASE_URL: http://airflow-webserver:8080
     depends_on:
       postgres:
         condition: service_healthy
       clickhouse:
         condition: service_healthy
+      backend-migrate:
+        condition: service_completed_successfully
+      clickhouse-init:
+        condition: service_completed_successfully
     ports:
       - "8000:8000"
     volumes:

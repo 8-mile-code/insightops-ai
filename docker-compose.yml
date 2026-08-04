@@ -12,6 +12,12 @@ x-backend-common: &backend-common
     CLICKHOUSE_PORT: 8123
     AIRFLOW_API_BASE_URL: http://airflow-webserver:8080
 
+x-airflow-image: &airflow-image
+  build:
+    context: .
+    dockerfile: docker/airflow/Dockerfile
+  image: ${AIRFLOW_IMAGE_NAME}
+
 x-airflow-common-env: &airflow-common-env
   AIRFLOW__CORE__EXECUTOR: LocalExecutor
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_POSTGRES_USER}:${AIRFLOW_POSTGRES_PASSWORD}@airflow-postgres:5432/${AIRFLOW_POSTGRES_DB}
@@ -138,7 +144,7 @@ services:
       start_period: 5s
 
   airflow-init:
-    image: ${AIRFLOW_IMAGE_NAME}
+    <<: *airflow-image
     container_name: insightops_airflow_init
     depends_on:
       airflow-postgres:
@@ -154,7 +160,7 @@ services:
     command: version
 
   airflow-webserver:
-    image: ${AIRFLOW_IMAGE_NAME}
+    <<: *airflow-image
     container_name: insightops_airflow_webserver
     restart: always
     depends_on:
@@ -171,7 +177,7 @@ services:
     command: api-server
 
   airflow-scheduler:
-    image: ${AIRFLOW_IMAGE_NAME}
+    <<: *airflow-image
     container_name: insightops_airflow_scheduler
     restart: always
     depends_on:
@@ -186,7 +192,7 @@ services:
     command: scheduler
 
   airflow-dag-processor:
-    image: ${AIRFLOW_IMAGE_NAME}
+    <<: *airflow-image
     container_name: insightops_airflow_dag_processor
     restart: always
     depends_on:

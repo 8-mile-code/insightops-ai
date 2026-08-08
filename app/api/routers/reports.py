@@ -30,7 +30,7 @@ def get_report_service() -> ReportService:
 
     return ReportService(
         report_repo=ReportRepository(),
-        project_repo=project_repo,
+        project_service=project_service,
         analytics_service=analytics_service,
         llm_service=LLMService(),
     )

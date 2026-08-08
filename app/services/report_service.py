@@ -5,16 +5,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
     LLMServiceError,
-    ProjectNotFoundError,
     ReportNotFoundError,
 )
 from app.models.report import Report
 from app.models.user import User
-from app.repositories.project_repository import ProjectRepository
 from app.repositories.report_repository import ReportRepository
 from app.schemas.report import ReportGenerateRequest
 from app.services.analytics_service import AnalyticsService
 from app.services.llm_service import LLMService
+from app.services.project_service import ProjectService
 
 
 class ReportService:
@@ -22,12 +21,12 @@ class ReportService:
         self,
         *,
         report_repo: ReportRepository,
-        project_repo: ProjectRepository,
+        project_service: ProjectService,
         analytics_service: AnalyticsService,
         llm_service: LLMService,
     ) -> None:
         self.report_repo = report_repo
-        self.project_repo = project_repo
+        self.project_service = project_service
         self.analytics_service = analytics_service
         self.llm_service = llm_service
 
@@ -39,7 +38,7 @@ class ReportService:
         current_user: User,
         report_in: ReportGenerateRequest,
     ) -> Report:
-        await self._ensure_project_access(
+        await self.project_service.get_user_project(
             db,
             project_id=project_id,
             current_user=current_user,
@@ -77,7 +76,7 @@ class ReportService:
         project_id: int,
         current_user: User,
     ) -> list[Report]:
-        await self._ensure_project_access(
+        await self.project_service.get_user_project(
             db,
             project_id=project_id,
             current_user=current_user,
@@ -105,22 +104,6 @@ class ReportService:
             raise ReportNotFoundError
 
         return report
-
-    async def _ensure_project_access(
-        self,
-        db: AsyncSession,
-        *,
-        project_id: int,
-        current_user: User,
-    ) -> None:
-        project = await self.project_repo.get_by_id_and_owner(
-            db,
-            project_id=project_id,
-            owner_id=current_user.id,
-        )
-
-        if project is None:
-            raise ProjectNotFoundError
 
     async def _collect_metrics(
         self,

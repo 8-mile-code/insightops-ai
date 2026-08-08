@@ -35,7 +35,7 @@ def get_agent_service() -> AgentService:
 
     report_service = ReportService(
         report_repo=ReportRepository(),
-        project_repo=project_repo,
+        project_service=project_service,
         analytics_service=analytics_service,
         llm_service=LLMService(),
     )

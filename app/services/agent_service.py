@@ -3,14 +3,13 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.analytics_graph import build_analytics_agent
-from app.core.exceptions import ProjectNotFoundError
 from app.models.agent_message import AgentMessage
 from app.models.report import Report
 from app.models.user import User
 from app.repositories.agent_message_repository import AgentMessageRepository
-from app.repositories.project_repository import ProjectRepository
 from app.schemas.agent import AskRequest
 from app.schemas.report import ReportGenerateRequest
+from app.services.project_service import ProjectService
 from app.services.report_service import ReportService
 
 
@@ -18,11 +17,11 @@ class AgentService:
     def __init__(
         self,
         *,
-        project_repo: ProjectRepository,
+        project_service: ProjectService,
         message_repo: AgentMessageRepository,
         report_service: ReportService,
     ) -> None:
-        self.project_repo = project_repo
+        self.project_service = project_service
         self.message_repo = message_repo
         self.report_service = report_service
 
@@ -34,7 +33,7 @@ class AgentService:
         current_user: User,
         ask_in: AskRequest,
     ) -> AgentMessage:
-        await self._ensure_project_access(
+        await self.project_service.get_user_project(
             db,
             project_id=project_id,
             current_user=current_user,
@@ -71,7 +70,7 @@ class AgentService:
         project_id: int,
         current_user: User,
     ) -> list[AgentMessage]:
-        await self._ensure_project_access(
+        await self.project_service.get_user_project(
             db,
             project_id=project_id,
             current_user=current_user,
@@ -104,22 +103,6 @@ class AgentService:
         }
 
         return await agent.ainvoke(initial_state)
-
-    async def _ensure_project_access(
-        self,
-        db: AsyncSession,
-        *,
-        project_id: int,
-        current_user: User,
-    ) -> None:
-        project = await self.project_repo.get_by_id_and_owner(
-            db,
-            project_id=project_id,
-            owner_id=current_user.id,
-        )
-
-        if project is None:
-            raise ProjectNotFoundError
 
     def _is_report_generation_request(self, question: str) -> bool:
         normalized_question = question.lower()

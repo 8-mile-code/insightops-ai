@@ -41,7 +41,7 @@ def get_agent_service() -> AgentService:
     )
 
     return AgentService(
-        project_repo=project_repo,
+        project_service=project_service,
         message_repo=AgentMessageRepository(),
         report_service=report_service,
     )

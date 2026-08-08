@@ -9,7 +9,6 @@ from starlette.responses import Response
 from app.core.config import settings
 from app.core.request_context import reset_request_id, set_request_id
 
-
 logger = logging.getLogger(__name__)
 
 

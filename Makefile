@@ -1,7 +1,7 @@
 .PHONY: help install dev test lint format fix check \
 	postgres-up migrate revision migration-current \
 	docker-up docker-down docker-ps docker-logs airflow-errors \
-	clickhouse-init seed-demo
+	clickhouse-init seed-demo format-check
 
 help:
 	@echo "Available commands:"
@@ -10,6 +10,7 @@ help:
 	@echo "  make test                            Run tests"
 	@echo "  make lint                            Run Ruff linter"
 	@echo "  make format                          Format code"
+	@echo "  make format-check                    Check code formatting"
 	@echo "  make fix                             Auto-fix lint issues and format code"
 	@echo "  make check                           Run lint and tests"
 	@echo "  make postgres-up                     Start backend PostgreSQL"
@@ -34,16 +35,19 @@ test:
 	uv run pytest
 
 lint:
-	uv run ruff check app dags
+	uv run ruff check .
 
 format:
-	uv run ruff format app dags
+	uv run ruff format .
+
+format-check:
+	uv run ruff format --check .
 
 fix:
-	uv run ruff format app dags
-	uv run ruff check --fix app dags
+	uv run ruff check --fix .
+	uv run ruff format .
 
-check: lint test
+check: lint format-check test
 
 postgres-up:
 	docker compose up -d postgres

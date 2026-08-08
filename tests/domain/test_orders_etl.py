@@ -121,9 +121,7 @@ def test_build_aggregates() -> None:
     ]
 
     transform_result = transform_rows(rows)
-    aggregate_result = build_aggregates(
-        transform_result["transformed_rows"]
-    )
+    aggregate_result = build_aggregates(transform_result["transformed_rows"])
 
     assert aggregate_result["rows_count"] == 3
     assert aggregate_result["daily_revenue"] == [
@@ -201,8 +199,7 @@ def test_validate_rows_treats_whitespace_as_empty() -> None:
     result = validate_rows(rows)
 
     errors = {
-        (error["type"], error.get("column"))
-        for error in result["errors"]
+        (error["type"], error.get("column")) for error in result["errors"]
     }
 
     assert result["is_valid"] is False

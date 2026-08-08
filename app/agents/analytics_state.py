@@ -1,6 +1,5 @@
 from typing import Any, Literal, TypedDict
 
-
 AnalyticsAction = Literal[
     "daily_revenue",
     "orders_by_status",

@@ -2,7 +2,6 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from typing import Any
 
-
 REQUIRED_COLUMNS = {
     "order_id",
     "customer_id",

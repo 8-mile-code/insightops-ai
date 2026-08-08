@@ -16,7 +16,6 @@ from app.schemas.analytics import (
 )
 from app.services.analytics_service import AnalyticsService
 
-
 router = APIRouter(
     prefix="/projects/{project_id}/analytics",
     tags=["📊 Analytics"],

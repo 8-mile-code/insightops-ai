@@ -1,6 +1,5 @@
 from contextvars import ContextVar, Token
 
-
 _request_id_ctx_var: ContextVar[str | None] = ContextVar(
     "request_id",
     default=None,

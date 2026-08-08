@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.analytics_graph import build_analytics_agent
 from app.core.exceptions import ProjectNotFoundError
 from app.models.agent_message import AgentMessage
-from app.models.user import User
 from app.models.report import Report
+from app.models.user import User
 from app.repositories.agent_message_repository import AgentMessageRepository
 from app.repositories.project_repository import ProjectRepository
 from app.schemas.agent import AskRequest

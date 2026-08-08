@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.api.routers.datasets import get_dataset_service
 from app.clients.airflow_client import AirflowClient
-
 from app.db.session import get_db
 from app.models.pipeline_run import PipelineRun
 from app.models.user import User
@@ -14,7 +13,6 @@ from app.repositories.dataset_repository import DatasetRepository
 from app.repositories.pipeline_run_repository import PipelineRunRepository
 from app.schemas.pipeline_run import PipelineRunRead, PipelineRunTriggered
 from app.services.pipeline_run_service import PipelineRunService
-
 
 router = APIRouter(tags=["⚙️ Pipeline runs"])
 

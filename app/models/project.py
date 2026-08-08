@@ -6,10 +6,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.agent_message import AgentMessage
     from app.models.dataset import Dataset
     from app.models.report import Report
     from app.models.user import User
-    from app.models.agent_message import AgentMessage
 
 
 class Project(Base, TimestampMixin):

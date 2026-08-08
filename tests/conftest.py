@@ -1,7 +1,7 @@
 import os
-import pytest
 from collections.abc import AsyncGenerator
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.engine import make_url
@@ -16,7 +16,6 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
-
 
 TEST_DATABASE_URL_ASYNC = os.getenv(
     "TEST_DATABASE_URL_ASYNC",
@@ -154,9 +153,7 @@ async def another_auth_headers(
     assert login_response.status_code == 200, login_response.text
 
     return {
-        "Authorization": (
-            f"Bearer {login_response.json()['access_token']}"
-        ),
+        "Authorization": (f"Bearer {login_response.json()['access_token']}"),
     }
 
 

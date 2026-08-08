@@ -9,7 +9,6 @@ from app.core.config import settings
 from app.core.exceptions import AppError
 from app.core.request_context import get_request_id
 
-
 logger = logging.getLogger(__name__)
 
 

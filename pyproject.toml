@@ -29,16 +29,16 @@ dependencies = [
 dev = [
     "pytest>=9.0.3",
     "ruff>=0.15.16",
-    "isort>=8.0.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
 ]
 
 [tool.ruff]
 line-length = 79
+extend-exclude = ["alembic/versions"]
 
 [tool.ruff.lint]
-extend-select = ["E501"]
+extend-select = ["E501", "I"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

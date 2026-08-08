@@ -2,17 +2,20 @@ import csv
 import os
 from collections import Counter, defaultdict
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
-from decimal import Decimal
 
-
-import psycopg2  # type: ignore[import-not-found]
-from psycopg2.extras import Json  # type: ignore[import-not-found]
-from airflow.sdk.exceptions import AirflowFailException  # type: ignore[import-not-found]
-from airflow.sdk import dag, task  # type: ignore[import-not-found]
 import clickhouse_connect  # type: ignore[import-not-found]
-from clickhouse_connect.driver.client import Client  # type: ignore[import-not-found]
+import psycopg2  # type: ignore[import-not-found]
+from airflow.sdk import dag, task  # type: ignore[import-not-found]
+from airflow.sdk.exceptions import (
+    AirflowFailException,  # type: ignore[import-not-found]
+)
+from clickhouse_connect.driver.client import (
+    Client,  # type: ignore[import-not-found]
+)
+from psycopg2.extras import Json  # type: ignore[import-not-found]
 
 PIPELINE_STATUS_RUNNING = "running"
 DATASET_STATUS_FAILED = "failed"

@@ -12,7 +12,6 @@ from app.repositories.dataset_repository import DatasetRepository
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.user_repository import UserRepository
 
-
 DEMO_EMAIL = "demo@insightops.com"
 DEMO_PASSWORD = "demo-password"
 DEMO_PROJECT_NAME = "Demo Analytics Project"
@@ -20,17 +19,11 @@ DEMO_DATASET_NAME = "demo_orders.csv"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-SAMPLE_DATASET_PATH = (
-    PROJECT_ROOT / "sample_data" / "orders_valid.csv"
-)
+SAMPLE_DATASET_PATH = PROJECT_ROOT / "sample_data" / "orders_valid.csv"
 
-DEMO_DATASET_RELATIVE_PATH = (
-    Path("uploads") / "datasets" / DEMO_DATASET_NAME
-)
+DEMO_DATASET_RELATIVE_PATH = Path("uploads") / "datasets" / DEMO_DATASET_NAME
 
-DEMO_DATASET_ABSOLUTE_PATH = (
-    PROJECT_ROOT / DEMO_DATASET_RELATIVE_PATH
-)
+DEMO_DATASET_ABSOLUTE_PATH = PROJECT_ROOT / DEMO_DATASET_RELATIVE_PATH
 
 
 async def main() -> None:

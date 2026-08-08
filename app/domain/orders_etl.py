@@ -20,6 +20,7 @@ ALLOWED_STATUSES = {
 
 
 def validate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Validate raw order rows and collect all data errors."""
     if not rows:
         return {
             "is_valid": False,
@@ -159,6 +160,7 @@ def transform_row(
 
 
 def transform_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Normalize validated order rows for analytics storage."""
     transformed_rows = [
         transform_row(row, row_index)
         for row_index, row in enumerate(rows, start=2)
@@ -173,6 +175,7 @@ def transform_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def build_aggregates(
     transformed_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    """Build analytics aggregates, counting revenue only for paid orders."""
     daily_revenue: dict[str, float] = defaultdict(float)
     customer_revenue: dict[str, float] = defaultdict(float)
     orders_by_status: Counter[str] = Counter()

@@ -34,14 +34,21 @@ class DatasetService:
         project = await self.project_service.get_user_project(
             db, project_id=project_id, current_user=current_user
         )
+
+        stored_file_path = Path(file_path)
+
         await self.file_storage_service.save_file(
-            Path(file_path),
+            stored_file_path,
             file_content,
         )
 
-        return await self.repo.create(
-            db, name=name, file_path=file_path, project_id=project.id
-        )
+        try:
+            return await self.repo.create(
+                db, name=name, file_path=file_path, project_id=project.id
+            )
+        except Exception:
+            await self.file_storage_service.delete_file(stored_file_path)
+            raise
 
     async def get_project_datasets(
         self, db: AsyncSession, *, project_id: int, current_user: User

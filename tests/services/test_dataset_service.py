@@ -1,3 +1,4 @@
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -77,3 +78,44 @@ async def test_get_missing_dataset_raises_not_found() -> None:
         )
 
     project_service.get_user_project.assert_not_awaited()
+
+
+async def test_create_dataset_removes_file_after_database_failure() -> None:
+    db = AsyncMock()
+    current_user = User(
+        id=7,
+        email="owner@example.com",
+        hashed_password="hashed",
+    )
+    project = SimpleNamespace(id=11)
+    repo = AsyncMock()
+    repo.create.side_effect = RuntimeError("Database write failed")
+    project_service = AsyncMock()
+    project_service.get_user_project.return_value = project
+    file_storage_service = AsyncMock()
+
+    service = DatasetService(
+        repo=repo,
+        project_service=project_service,
+        file_storage_service=file_storage_service,
+    )
+
+    file_path = "uploads/datasets/orders.csv"
+
+    with pytest.raises(RuntimeError, match="Database write failed"):
+        await service.create_dataset(
+            db,
+            project_id=project.id,
+            current_user=current_user,
+            name="orders.csv",
+            file_path=file_path,
+            file_content=b"csv-content",
+        )
+
+    file_storage_service.save_file.assert_awaited_once_with(
+        Path(file_path),
+        b"csv-content",
+    )
+    file_storage_service.delete_file.assert_awaited_once_with(
+        Path(file_path),
+    )

@@ -89,7 +89,7 @@ def validate_row(
         if normalized_amount != "":
             try:
                 float(normalized_amount)
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 errors.append(
                     {
                         "type": "invalid_amount",

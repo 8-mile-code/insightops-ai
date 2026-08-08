@@ -1,6 +1,5 @@
 import csv
 import os
-from collections import Counter, defaultdict
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -17,27 +16,19 @@ from clickhouse_connect.driver.client import (
 )
 from psycopg2.extras import Json  # type: ignore[import-not-found]
 
+from app.domain.orders_etl import (
+    build_aggregates as build_order_aggregates,
+)
+from app.domain.orders_etl import (
+    transform_rows,
+    validate_rows,
+)
+
 PIPELINE_STATUS_RUNNING = "running"
 DATASET_STATUS_FAILED = "failed"
 DATASET_STATUS_PROCESSED = "processed"
 PIPELINE_STATUS_SUCCESS = "success"
 PIPELINE_STATUS_FAILED = "failed"
-
-REQUIRED_COLUMNS = {
-    "order_id",
-    "customer_id",
-    "amount",
-    "status",
-    "created_at",
-}
-
-ALLOWED_STATUSES = {
-    "paid",
-    "failed",
-    "pending",
-    "cancelled",
-    "refunded",
-}
 
 
 def get_connection():
@@ -247,45 +238,13 @@ def process_dataset_dag():
         with path.open("r", encoding="utf-8") as file:
             rows = list(csv.DictReader(file))
 
-        if not rows:
-            raise ValueError("CSV file is empty or contains only headers.")
-
         print(f"Extracted {len(rows)} rows from {path}")
 
         return rows
 
     @task(on_failure_callback=mark_pipeline_run_failed)
     def validate(rows: list[dict[str, Any]]) -> dict[str, Any]:
-        errors: list[dict[str, Any]] = []
-
-        headers = set(rows[0].keys())
-        missing_columns = REQUIRED_COLUMNS - headers
-
-        if missing_columns:
-            result = {
-                "is_valid": False,
-                "errors": [
-                    {
-                        "type": "missing_columns",
-                        "message": "CSV file is missing required columns.",
-                        "columns": sorted(missing_columns),
-                    }
-                ],
-                "rows_count": len(rows),
-            }
-
-            print(f"Validation result: {result}")
-
-            return result
-
-        for row_index, row in enumerate(rows, start=2):
-            errors.extend(validate_row(row, row_index))
-
-        result = {
-            "is_valid": not errors,
-            "errors": errors,
-            "rows_count": len(rows),
-        }
+        result = validate_rows(rows)
 
         print(f"Validation result: {result}")
 
@@ -337,17 +296,9 @@ def process_dataset_dag():
 
     @task(on_failure_callback=mark_pipeline_run_failed)
     def transform(rows: list[dict[str, Any]]) -> dict[str, Any]:
-        transformed_rows = [
-            transform_row(row, row_index)
-            for row_index, row in enumerate(rows, start=2)
-        ]
+        result = transform_rows(rows)
 
-        result = {
-            "rows_count": len(transformed_rows),
-            "transformed_rows": transformed_rows,
-        }
-
-        print(f"Transformed {len(transformed_rows)} rows")
+        print(f"Transformed {result['rows_count']} rows")
 
         return result
 
@@ -355,60 +306,9 @@ def process_dataset_dag():
     def build_aggregates(
         transform_result: dict[str, Any],
     ) -> dict[str, Any]:
-        rows = transform_result["transformed_rows"]
-
-        daily_revenue: dict[str, float] = defaultdict(float)
-        customer_revenue: dict[str, float] = defaultdict(float)
-        orders_by_status: Counter[str] = Counter()
-
-        failed_payments_count = 0
-        failed_payments_amount = 0.0
-
-        for row in rows:
-            status = row["status"]
-            amount = float(row["amount"])
-            order_date = (
-                datetime.fromisoformat(row["created_at"]).date().isoformat()
-            )
-
-            orders_by_status[status] += 1
-
-            if status == "paid":
-                daily_revenue[order_date] += amount
-                customer_revenue[row["customer_id"]] += amount
-
-            if status == "failed":
-                failed_payments_count += 1
-                failed_payments_amount += amount
-
-        top_customers = sorted(
-            [
-                {
-                    "customer_id": customer_id,
-                    "revenue": round(revenue, 2),
-                }
-                for customer_id, revenue in customer_revenue.items()
-            ],
-            key=lambda item: item["revenue"],
-            reverse=True,
-        )[:5]
-
-        result = {
-            "rows_count": len(rows),
-            "daily_revenue": [
-                {
-                    "date": revenue_date,
-                    "revenue": round(revenue, 2),
-                }
-                for revenue_date, revenue in sorted(daily_revenue.items())
-            ],
-            "failed_payments": {
-                "count": failed_payments_count,
-                "amount": round(failed_payments_amount, 2),
-            },
-            "top_customers": top_customers,
-            "orders_by_status": dict(orders_by_status),
-        }
+        result = build_order_aggregates(
+            transform_result["transformed_rows"],
+        )
 
         print(f"Aggregates result: {result}")
 
@@ -660,78 +560,6 @@ def process_dataset_dag():
         pipeline_run_id=pipeline_run_id,
         load_result=load_result,
     )
-
-
-def validate_row(
-    row: dict[str, Any],
-    row_index: int,
-) -> list[dict[str, Any]]:
-    errors: list[dict[str, Any]] = []
-
-    for column in REQUIRED_COLUMNS:
-        if row.get(column) in (None, ""):
-            errors.append(
-                {
-                    "type": "empty_value",
-                    "message": "Required value is empty.",
-                    "row": row_index,
-                    "column": column,
-                }
-            )
-
-    amount = row.get("amount")
-
-    if amount:
-        try:
-            float(amount)
-        except ValueError:
-            errors.append(
-                {
-                    "type": "invalid_amount",
-                    "message": "Amount must be a number.",
-                    "row": row_index,
-                    "column": "amount",
-                    "value": amount,
-                }
-            )
-
-    status = row.get("status")
-
-    if status and status.lower() not in ALLOWED_STATUSES:
-        errors.append(
-            {
-                "type": "invalid_status",
-                "message": "Order status is not supported.",
-                "row": row_index,
-                "column": "status",
-                "value": status,
-                "allowed_values": sorted(ALLOWED_STATUSES),
-            }
-        )
-
-    return errors
-
-
-def transform_row(
-    row: dict[str, Any],
-    row_index: int,
-) -> dict[str, Any]:
-    try:
-        created_at = datetime.fromisoformat(
-            row["created_at"].strip().replace("Z", "+00:00")
-        )
-    except ValueError as exc:
-        raise ValueError(
-            f"Invalid created_at value at row {row_index}: {row['created_at']}"
-        ) from exc
-
-    return {
-        "order_id": row["order_id"].strip(),
-        "customer_id": row["customer_id"].strip(),
-        "amount": float(row["amount"]),
-        "status": row["status"].strip().lower(),
-        "created_at": created_at.isoformat(),
-    }
 
 
 process_dataset_dag()

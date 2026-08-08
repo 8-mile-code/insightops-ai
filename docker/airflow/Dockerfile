@@ -12,4 +12,14 @@ COPY --chown=airflow:0 \
     docker/airflow/init_simple_auth.py \
     /opt/airflow/init_simple_auth.py
 
+COPY --chown=airflow:0 \
+    app/__init__.py \
+    /opt/airflow/app/__init__.py
+
+COPY --chown=airflow:0 \
+    app/domain \
+    /opt/airflow/app/domain
+
+ENV PYTHONPATH=/opt/airflow
+
 USER airflow

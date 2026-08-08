@@ -1,20 +1,19 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.core.exceptions import ProjectNotFoundError
 from app.models.user import User
 from app.repositories.analytics_repository import AnalyticsRepository
-from app.repositories.project_repository import ProjectRepository
+from app.services.project_service import ProjectService
 
 
 class AnalyticsService:
     def __init__(
         self,
         *,
-        project_repo: ProjectRepository,
+        project_service: ProjectService,
         analytics_repo: AnalyticsRepository,
     ) -> None:
-        self.project_repo = project_repo
+        self.project_service = project_service
         self.analytics_repo = analytics_repo
 
     async def get_daily_revenue(
@@ -26,7 +25,7 @@ class AnalyticsService:
         dataset_id: int | None = None,
         pipeline_run_id: int | None = None,
     ) -> list[dict]:
-        await self._ensure_project_access(
+        await self.project_service.get_user_project(
             db,
             project_id=project_id,
             current_user=current_user,
@@ -48,7 +47,7 @@ class AnalyticsService:
         dataset_id: int | None = None,
         pipeline_run_id: int | None = None,
     ) -> list[dict]:
-        await self._ensure_project_access(
+        await self.project_service.get_user_project(
             db,
             project_id=project_id,
             current_user=current_user,
@@ -70,7 +69,7 @@ class AnalyticsService:
         dataset_id: int | None = None,
         pipeline_run_id: int | None = None,
     ) -> dict:
-        await self._ensure_project_access(
+        await self.project_service.get_user_project(
             db,
             project_id=project_id,
             current_user=current_user,
@@ -93,7 +92,7 @@ class AnalyticsService:
         pipeline_run_id: int | None = None,
         limit: int = 5,
     ) -> list[dict]:
-        await self._ensure_project_access(
+        await self.project_service.get_user_project(
             db,
             project_id=project_id,
             current_user=current_user,
@@ -106,19 +105,3 @@ class AnalyticsService:
             pipeline_run_id=pipeline_run_id,
             limit=limit,
         )
-
-    async def _ensure_project_access(
-        self,
-        db: AsyncSession,
-        *,
-        project_id: int,
-        current_user: User,
-    ) -> None:
-        project = await self.project_repo.get_by_id_and_owner(
-            db,
-            project_id=project_id,
-            owner_id=current_user.id,
-        )
-
-        if project is None:
-            raise ProjectNotFoundError

@@ -15,6 +15,7 @@ from app.schemas.analytics import (
     TopCustomerItem,
 )
 from app.services.analytics_service import AnalyticsService
+from app.services.project_service import ProjectService
 
 router = APIRouter(
     prefix="/projects/{project_id}/analytics",
@@ -24,7 +25,9 @@ router = APIRouter(
 
 def get_analytics_service() -> AnalyticsService:
     return AnalyticsService(
-        project_repo=ProjectRepository(),
+        project_service=ProjectService(
+            repo=ProjectRepository(),
+        ),
         analytics_repo=AnalyticsRepository(),
     )
 

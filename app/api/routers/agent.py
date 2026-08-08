@@ -15,6 +15,7 @@ from app.schemas.agent import AgentMessageRead, AskRequest, AskResponse
 from app.services.agent_service import AgentService
 from app.services.analytics_service import AnalyticsService
 from app.services.llm_service import LLMService
+from app.services.project_service import ProjectService
 from app.services.report_service import ReportService
 
 router = APIRouter(
@@ -25,9 +26,10 @@ router = APIRouter(
 
 def get_agent_service() -> AgentService:
     project_repo = ProjectRepository()
+    project_service = ProjectService(repo=project_repo)
 
     analytics_service = AnalyticsService(
-        project_repo=project_repo,
+        project_service=project_service,
         analytics_repo=AnalyticsRepository(),
     )
 

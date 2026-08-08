@@ -1,8 +1,7 @@
-from typing import Any
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.analytics_graph import build_analytics_agent
+from app.agents.analytics_state import AnalyticsAgentState
 from app.models.agent_message import AgentMessage
 from app.models.report import Report
 from app.models.user import User
@@ -86,10 +85,10 @@ class AgentService:
         *,
         project_id: int,
         ask_in: AskRequest,
-    ) -> dict[str, Any]:
+    ) -> AnalyticsAgentState:
         agent = build_analytics_agent()
 
-        initial_state = {
+        initial_state: AnalyticsAgentState = {
             "question": ask_in.question,
             "project_id": project_id,
             "dataset_id": ask_in.dataset_id,

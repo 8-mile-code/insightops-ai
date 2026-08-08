@@ -1,5 +1,6 @@
 import logging
 import re
+from collections.abc import Callable
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -403,7 +404,7 @@ async def _call_mcp_tool_with_fallback(
     *,
     mcp_tool_name: str,
     mcp_arguments: dict[str, Any],
-    fallback_tool,
+    fallback_tool: Callable[..., ToolResult],
     fallback_arguments: dict[str, Any],
     state: AnalyticsAgentState,
 ) -> dict[str, Any]:
@@ -469,7 +470,7 @@ def _normalize_mcp_result(
     *,
     tool_name: str,
     result: dict[str, Any],
-) -> dict[str, Any]:
+) -> ToolResult:
     return {
         "tool_name": result.get("tool", tool_name),
         "data": result.get("data"),

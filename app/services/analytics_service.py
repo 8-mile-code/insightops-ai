@@ -24,7 +24,7 @@ class AnalyticsService:
         current_user: User,
         dataset_id: int | None = None,
         pipeline_run_id: int | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, object]]:
         await self.project_service.get_user_project(
             db,
             project_id=project_id,
@@ -46,7 +46,7 @@ class AnalyticsService:
         current_user: User,
         dataset_id: int | None = None,
         pipeline_run_id: int | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, str | int]]:
         await self.project_service.get_user_project(
             db,
             project_id=project_id,
@@ -68,7 +68,7 @@ class AnalyticsService:
         current_user: User,
         dataset_id: int | None = None,
         pipeline_run_id: int | None = None,
-    ) -> dict:
+    ) -> dict[str, int | float]:
         await self.project_service.get_user_project(
             db,
             project_id=project_id,
@@ -91,7 +91,7 @@ class AnalyticsService:
         dataset_id: int | None = None,
         pipeline_run_id: int | None = None,
         limit: int = 5,
-    ) -> list[dict]:
+    ) -> list[dict[str, str | float]]:
         await self.project_service.get_user_project(
             db,
             project_id=project_id,

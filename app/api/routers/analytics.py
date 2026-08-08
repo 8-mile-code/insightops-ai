@@ -46,7 +46,7 @@ async def get_daily_revenue(
     ],
     dataset_id: int | None = None,
     pipeline_run_id: int | None = None,
-) -> list[dict]:
+) -> list[dict[str, object]]:
     return await analytics_service.get_daily_revenue(
         db,
         project_id=project_id,
@@ -70,7 +70,7 @@ async def get_orders_by_status(
     ],
     dataset_id: int | None = None,
     pipeline_run_id: int | None = None,
-) -> list[dict]:
+) -> list[dict[str, str | int]]:
     return await analytics_service.get_orders_by_status(
         db,
         project_id=project_id,
@@ -94,7 +94,7 @@ async def get_failed_payments(
     ],
     dataset_id: int | None = None,
     pipeline_run_id: int | None = None,
-) -> dict:
+) -> dict[str, int | float]:
     return await analytics_service.get_failed_payments(
         db,
         project_id=project_id,
@@ -119,7 +119,7 @@ async def get_top_customers(
     dataset_id: int | None = None,
     pipeline_run_id: int | None = None,
     limit: int = Query(default=5, ge=1, le=50),
-) -> list[dict]:
+) -> list[dict[str, str | float]]:
     return await analytics_service.get_top_customers(
         db,
         project_id=project_id,

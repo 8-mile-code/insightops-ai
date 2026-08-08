@@ -55,7 +55,7 @@ class AnalyticsRepository:
         project_id: int,
         dataset_id: int | None = None,
         pipeline_run_id: int | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, str | int]]:
         where_clause, parameters = self._build_filters(
             project_id=project_id,
             dataset_id=dataset_id,
@@ -89,7 +89,7 @@ class AnalyticsRepository:
         project_id: int,
         dataset_id: int | None = None,
         pipeline_run_id: int | None = None,
-    ) -> dict:
+    ) -> dict[str, int | float]:
         where_clause, parameters = self._build_filters(
             project_id=project_id,
             dataset_id=dataset_id,
@@ -121,7 +121,7 @@ class AnalyticsRepository:
         dataset_id: int | None = None,
         pipeline_run_id: int | None = None,
         limit: int = 5,
-    ) -> list[dict]:
+    ) -> list[dict[str, str | float]]:
         where_clause, parameters = self._build_filters(
             project_id=project_id,
             dataset_id=dataset_id,
@@ -157,9 +157,9 @@ class AnalyticsRepository:
         project_id: int,
         dataset_id: int | None = None,
         pipeline_run_id: int | None = None,
-    ) -> tuple[str, dict]:
+    ) -> tuple[str, dict[str, int]]:
         where_parts = ["project_id = {project_id: UInt64}"]
-        parameters = {"project_id": project_id}
+        parameters: dict[str, int] = {"project_id": project_id}
 
         if dataset_id is not None:
             where_parts.append("dataset_id = {dataset_id: UInt64}")
